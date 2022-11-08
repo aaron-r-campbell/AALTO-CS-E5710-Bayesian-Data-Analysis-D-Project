@@ -1,0 +1,25 @@
+---
+title: "BDA - Project"
+author: "A. Campbell, A. Ikäheimonen, E. Suominen"
+output: 
+  pdf_document: 
+    toc: yes
+    toc_depth: 1
+    highlight: haddock
+urlcolor: blue
+---
+
+# Introduction
+# Overview of the Dataset
+# Analysis Problem
+## Models
+## Priors
+# Implementation
+## Stan
+## Results
+### Convergence Diagnostics
+### Post-Predictive Checks
+### Sensitivity Analysis of Priors
+## Discussion of issues and future improvements
+# Conclusion
+# Reflection

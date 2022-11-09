@@ -1,0 +1,94 @@
+---
+title: "BDA - Project EDA"
+author: "Eetu Suominen"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(aaltobda)
+library(LaplacesDemon)
+library(cmdstanr)
+library(posterior)
+library(loo)
+library(tidyr)
+library(dplyr)
+options(pillar.neg=FALSE)
+library(ggplot2)
+library(gridExtra)
+library(bayesplot)
+library(ggdist)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+library(rprojroot)
+SEED <- 614273
+```
+
+
+Load data
+```{r}
+data <- read.csv('Machine-Learning-with-R-datasets/insurance.csv')
+head(data)
+```
+
+Check for null values
+```{r}
+colSums(is.na(data))
+```
+
+Remove region column and label encode sex and smoker columns
+```{r}
+data_clean <- subset(data, select = -c(region))
+data_clean$sex <- ifelse(data_clean$sex == 'male',1,0)
+data_clean$smoker <- ifelse(data_clean$smoker == 'yes',1,0)
+head(data_clean)
+```
+
+
+Summary statistics of the data
+```{r}
+summary(data_clean)
+```
+
+Plot histogram of the insurance costs
+```{r}
+ggplot() +
+  geom_histogram(aes(data_clean$charges), fill = 'steelblue', color = 'black') +
+  labs(title = 'Medical costs billed by health insurance', x='Insurance cost ($)')
+```
+
+Plot histogram of the BMI values
+```{r}
+ggplot() +
+  geom_histogram(aes(data_clean$bmi), fill = 'steelblue', color = 'black') +
+  labs(title = 'Body mass index', x='BMI (kg/m^2)')
+```
+
+
+Plot scatter plot of the insurance costs with bmi as x-axis.
+```{r}
+ggplot() +
+  geom_point(aes(data_clean$bmi, data_clean$charges), size = 1, color = 'steelblue') +
+  labs(y = 'Insurance cost ($)', x= 'BMI (kg/m^2)') +
+  guides(linetype = "none")
+```
+
+
+
+Plot scatter plot of the insurance costs with age as x-axis.
+```{r}
+ggplot() +
+  geom_point(aes(data_clean$age, data_clean$charges), size = 1, color = 'steelblue') +
+  labs(y = 'Insurance cost ($)', x= 'Age') +
+  guides(linetype = "none")
+```
+

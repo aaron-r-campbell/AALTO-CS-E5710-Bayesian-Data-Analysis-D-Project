@@ -1,0 +1,148 @@
+---
+title: "BDA - Project brms library test"
+author: "Arsi Ikäheimonen"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(aaltobda)
+library(LaplacesDemon)
+library(cmdstanr)
+library(posterior)
+library(loo)
+library(tidyr)
+library(dplyr)
+options(pillar.neg=FALSE)
+library(ggplot2)
+library(gridExtra)
+library(bayesplot)
+library(ggdist)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+library(rprojroot)
+SEED <- 614273
+```
+
+
+Load data
+```{r}
+data <- read.csv('Machine-Learning-with-R-datasets/insurance.csv')
+head(data)
+```
+
+Check for null values
+```{r}
+colSums(is.na(data))
+```
+
+Some typecasting
+```{r}
+data$region <- as.factor(data$region)
+data$sex <- as.factor(data$sex)
+data$smoker <- as.factor(data$smoker)
+data$children <- as.integer(data$children)
+head(data)
+```
+
+
+Summary statistics of the data
+```{r}
+summary(data)
+```
+
+Plot histogram of the insurance costs
+```{r}
+ggplot() +
+  geom_histogram(aes(data$charges), fill = 'steelblue', color = 'black') +
+  labs(title = 'Medical costs billed by health insurance', x='Insurance cost ($)')
+```
+
+Plot histogram of the BMI values
+```{r}
+ggplot() +
+  geom_histogram(aes(data$bmi), fill = 'steelblue', color = 'black') +
+  labs(title = 'Body mass index', x='BMI (kg/m^2)')
+```
+
+
+Plot scatter plot of the insurance costs with bmi as x-axis.
+```{r}
+ggplot(data) +
+  geom_point(aes(x=bmi, y=charges), size = 1, color = 'steelblue') +
+  labs(y = 'Insurance cost ($)', x= 'BMI (kg/m^2)') +
+  guides(linetype = "none")
+```
+
+
+
+Plot scatter plot of the insurance costs with age as x-axis.
+```{r}
+ggplot(data,aes(x=age,y=charges,col=smoker)) +
+  geom_point(size = 1,) +
+  labs(y = 'Insurance cost ($)', x= 'Age') +
+  guides(linetype = "none")
+```
+Charges vs region
+```{r}
+ggplot(data, aes(x=region, y=charges, fill=region)) + 
+    geom_boxplot()
+```
+Charges vs sex
+```{r}
+ggplot(data, aes(x=sex, y=charges, fill=sex)) + 
+    geom_boxplot()
+```
+Charges vs smoker
+```{r}
+ggplot(data, aes(x=smoker, y=charges, fill=smoker)) + 
+    geom_boxplot()
+```
+Charges vs children
+```{r}
+ggplot(data, aes(x=children, y=charges, fill=children, group=children)) + 
+    geom_boxplot()
+```
+Basic linear model
+```{r}
+basic_model = lm(charges~age+sex+bmi+children+smoker+region, data = data) #Create the linear regression
+summary(basic_model) #Review the results
+```
+Bauesian mode with brms
+```{r}
+library(brms)
+
+pr = prior(normal(0, 10), class = 'b')
+
+bayesian_mixed = brm(
+  charges ~ age + sex + bmi + children + (1|region) + (1|smoker),
+  data  = data,
+  prior = pr,
+  cores = 4
+)
+```
+Model summary
+```{r}
+summary(bayesian_mixed, waic=TRUE)
+```
+STAN code generation
+```{r}
+make_stancode(charges ~ age + sex + bmi + children + (1|region) + (1|smoker), data=data, family = "gaussian")
+```
+Conditional effects
+
+```{r}
+conditional_effects(bayesian_mixed)
+```
+
+
+

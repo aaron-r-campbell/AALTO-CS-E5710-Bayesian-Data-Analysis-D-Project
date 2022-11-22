@@ -17,19 +17,11 @@ urlcolor: blue
 Load packages
 ```{r message=FALSE, warning=FALSE}
 library(aaltobda)
-library(LaplacesDemon)
 library(cmdstanr)
-library(posterior)
-library(loo)
-library(tidyr)
-library(dplyr)
-options(pillar.neg=FALSE)
+library(brms)
 library(ggplot2)
-library(gridExtra)
-library(bayesplot)
-library(ggdist)
-theme_set(bayesplot::theme_default(base_family = "sans"))
-library(rprojroot)
+library(corrplot)
+
 SEED <- 614273
 ```
 
@@ -63,14 +55,14 @@ summary(data)
 Plot histogram of the insurance costs
 ```{r}
 ggplot() +
-  geom_histogram(aes(data$charges), fill = 'steelblue', color = 'black') +
+  geom_histogram(aes(data$charges), fill = 'steelblue') +
   labs(title = 'Medical costs billed by health insurance', x='Insurance cost ($)')
 ```
 
 Plot histogram of the BMI values
 ```{r}
 ggplot() +
-  geom_histogram(aes(data$bmi), fill = 'steelblue', color = 'black') +
+  geom_histogram(aes(data$bmi), fill = 'steelblue') +
   labs(title = 'Body mass index', x='BMI (kg/m^2)')
 ```
 
@@ -112,17 +104,46 @@ Charges vs children
 ggplot(data, aes(x=children, y=charges, fill=children, group=children)) + 
     geom_boxplot()
 ```
+Remove region column and label encode sex and smoker columns in order to compute correlation matrix
+```{r}
+data_clean <- subset(data, select = -c(region))
+data_clean$sex <- ifelse(data_clean$sex == 'male',1,0)
+data_clean$smoker <- ifelse(data_clean$smoker == 'yes',1,0)
+head(data_clean)
+```
+
+```{r}
+cor_matrix = cor(data_clean)
+corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
+         cl.pos = 'n')
+```
+
 Basic linear model
 ```{r}
 basic_model = lm(charges~age+sex+bmi+children+smoker+region, data = data) #Create the linear regression
 summary(basic_model) #Review the results
 ```
-Bauesian mode with brms
-```{r}
-library(brms)
 
+Baseline model with only Age data as it has the second highest correlation to Charges after smoking.
+```{r}
 pr = prior(normal(0, 10), class = 'b')
 
+fit_baseline = brm(
+  charges ~ age,
+  data  = data,
+  prior = pr,
+  cores = 4
+)
+```
+
+```{r}
+summary(fit_baseline)
+```
+
+
+
+Bayesian model with brms
+```{r}
 bayesian_mixed = brm(
   charges ~ age + sex + bmi + children + (1|region) + (1|smoker),
   data  = data,

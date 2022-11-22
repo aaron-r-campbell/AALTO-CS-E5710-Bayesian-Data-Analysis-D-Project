@@ -17,19 +17,8 @@ urlcolor: blue
 Load packages
 ```{r message=FALSE, warning=FALSE}
 library(aaltobda)
-library(LaplacesDemon)
-library(cmdstanr)
-library(posterior)
-library(loo)
-library(tidyr)
-library(dplyr)
-options(pillar.neg=FALSE)
 library(ggplot2)
-library(gridExtra)
-library(bayesplot)
-library(ggdist)
-theme_set(bayesplot::theme_default(base_family = "sans"))
-library(rprojroot)
+library(corrplot)
 SEED <- 614273
 ```
 
@@ -45,31 +34,22 @@ Check for null values
 colSums(is.na(data))
 ```
 
-Remove region column and label encode sex and smoker columns
-```{r}
-data_clean <- subset(data, select = -c(region))
-data_clean$sex <- ifelse(data_clean$sex == 'male',1,0)
-data_clean$smoker <- ifelse(data_clean$smoker == 'yes',1,0)
-head(data_clean)
-```
-
-
 Summary statistics of the data
 ```{r}
-summary(data_clean)
+summary(data)
 ```
 
 Plot histogram of the insurance costs
 ```{r}
 ggplot() +
-  geom_histogram(aes(data_clean$charges), fill = 'steelblue', color = 'black') +
+  geom_histogram(aes(data$charges), fill = 'steelblue') +
   labs(title = 'Medical costs billed by health insurance', x='Insurance cost ($)')
 ```
 
 Plot histogram of the BMI values
 ```{r}
 ggplot() +
-  geom_histogram(aes(data_clean$bmi), fill = 'steelblue', color = 'black') +
+  geom_histogram(aes(data$bmi), fill = 'steelblue') +
   labs(title = 'Body mass index', x='BMI (kg/m^2)')
 ```
 
@@ -77,18 +57,49 @@ ggplot() +
 Plot scatter plot of the insurance costs with bmi as x-axis.
 ```{r}
 ggplot() +
-  geom_point(aes(data_clean$bmi, data_clean$charges), size = 1, color = 'steelblue') +
+  geom_point(aes(data$bmi, data$charges), size = 1, color = 'steelblue') +
   labs(y = 'Insurance cost ($)', x= 'BMI (kg/m^2)') +
   guides(linetype = "none")
 ```
-
-
-
 Plot scatter plot of the insurance costs with age as x-axis.
 ```{r}
-ggplot() +
-  geom_point(aes(data_clean$age, data_clean$charges), size = 1, color = 'steelblue') +
+ggplot(data,aes(x=age,y=charges,col=smoker)) +
+  geom_point(size = 1,) +
   labs(y = 'Insurance cost ($)', x= 'Age') +
   guides(linetype = "none")
+```
+Charges vs region
+```{r}
+ggplot(data, aes(x=region, y=charges, fill=region)) + 
+    geom_boxplot()
+```
+Charges vs sex
+```{r}
+ggplot(data, aes(x=sex, y=charges, fill=sex)) + 
+    geom_boxplot()
+```
+Charges vs smoker
+```{r}
+ggplot(data, aes(x=smoker, y=charges, fill=smoker)) + 
+    geom_boxplot()
+```
+Charges vs children
+```{r}
+ggplot(data, aes(x=children, y=charges, fill=children, group=children)) + 
+    geom_boxplot()
+```
+
+Remove region column and label encode sex and smoker columns in order to compute correlation matrix
+```{r}
+data_clean <- subset(data, select = -c(region))
+data_clean$sex <- ifelse(data_clean$sex == 'male',1,0)
+data_clean$smoker <- ifelse(data_clean$smoker == 'yes',1,0)
+head(data_clean)
+```
+
+```{r}
+cor_matrix = cor(data_clean)
+corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
+         cl.pos = 'n')
 ```
 

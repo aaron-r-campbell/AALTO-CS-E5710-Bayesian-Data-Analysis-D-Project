@@ -21,6 +21,7 @@ library(cmdstanr)
 library(brms)
 library(ggplot2)
 library(corrplot)
+library(dplyr)
 
 SEED <- 614273
 ```
@@ -164,6 +165,19 @@ Conditional effects
 ```{r}
 conditional_effects(bayesian_mixed)
 ```
+```{r}
+conditional_effects(fit_baseline) %>%
+  plot(points = T,
+       point_args = c(alpha = 1/2, size = 1))
+```
+Posterior predictive checks
+
+```{r}
+pp_check(fit_baseline)
+pp_check(bayesian_mixed)
+```
+
+
 
 
 

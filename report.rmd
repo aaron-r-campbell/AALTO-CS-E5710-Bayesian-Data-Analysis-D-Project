@@ -6,6 +6,7 @@ output:
     toc: yes
     toc_depth: 1
     highlight: haddock
+    fig_caption: true
 urlcolor: blue
 ---
 
@@ -13,13 +14,19 @@ urlcolor: blue
 
 # Introduction
 
-In the United States of America (USA), the health insurance system runs on a privatized model meaning that customers[^1] can choose between different insurance companies. Because of the free-market nature of privatization, it is important for insurance companies to offer competitive pricing to attract customers away from their competitors. At the same time, it is important for the insurance company to charge enough that they will remain profitable or at least break even when medical expenses of their clients do occur. One way to achieve this is to base the customers routine insurance payments around the expected value of the medical charges for that customer. This benefits both the customer and the insurance provider as customers are then less likely to be over-charged compared to their risk as a client, and the corporation is able to ensure that it remains functional as a business.
+In the United States of America (USA), the health insurance system runs on a privatized model meaning that customers^[Often in the US, the health insurance provider is decided by one's employer so customer in this context likely refers to corporations and not individuals.] can choose between different insurance companies. Because of the free-market nature of privatization, it is important for insurance companies to offer competitive pricing to attract customers away from their competitors. At the same time, it is important for the insurance company to charge enough that they will remain profitable or at least break even when medical expenses of their clients do occur. One way to achieve this is to base the customers routine insurance payments around the expected value of the medical charges for that customer. This benefits both the customer and the insurance provider as customers are then less likely to be over-charged compared to their risk as a client, and the corporation is able to ensure that it remains functional as a business.
+
+see figure \ref{fig1}.
+
+\begin{figure}
+  \centering
+  \includegraphics[height=0.5\textwidth]{./img/insurance_charge_distribution.pdf}
+  \caption{Distribution of medical costs billed by insurance. Data from the Kaggle dataset. \label{fig1}}
+\end{figure}
 
 Ultimately, approximating the expected value of future medical charges for a customer is a challenging feat. It would be beneficial for the health insurance company to be able to predict this future expense claim cost using easily obtainable information on their clients such as age, sex, BMI, and other relevant factors. This would allow the insurance company to decide on a reasonable monthly insurance payment to cover the expected cost of this customer.
 
 In this report we will use Bayesian analysis techniques to develop a few different predictive models written in the R language and using the Stan platform to define and run the models. We then will analyze the model results and compare the models using Pareto-smoothed importance sampling (PSIS) and leave one out cross validation (LOO-CV)
-
-[^1]: Often in the US, the health insurance provider is decided by one's employer so customer in this context likely refers to corporations and not individuals.
 
 # Overview of the Dataset
 
@@ -68,9 +75,11 @@ summary(data_clean)
 
 Plot histogram of the insurance costs
 ```{r}
-ggplot() +
+insurance_charge_distribution <- ggplot() +
   geom_histogram(aes(data_clean$charges), fill = 'steelblue', color = 'black') +
-  labs(title = 'Medical costs billed by health insurance', x='Insurance cost ($)')
+  labs(title = 'Medical costs billed by health insurance', x='cost ($)')
+insurance_charge_distribution
+ggsave("insurance_charge_distribution.pdf", insurance_charge_distribution, path = "./img")
 ```
 
 

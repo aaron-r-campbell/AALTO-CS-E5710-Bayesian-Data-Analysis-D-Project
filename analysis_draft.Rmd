@@ -1,0 +1,192 @@
+---
+title: "BDA - Project brms library test"
+author: "Arsi Ikäheimonen"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(aaltobda)
+library(cmdstanr)
+library(brms)
+library(ggplot2)
+library(gridExtra)
+library(bayesplot)
+library(ggdist)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+library(rprojroot)
+library(brms)
+library(caret)
+library(corrplot)
+library(dplyr)
+library(crosstable)
+SEED <- 614273
+```
+
+
+Load data
+```{r}
+data <- read.csv('Machine-Learning-with-R-datasets/insurance.csv')
+head(data)
+```
+
+Typecasting
+```{r}
+data$region <- as.factor(data$region)
+data$sex <- as.factor(data$sex)
+data$smoker <- as.factor(data$smoker)
+data$children <- as.integer(data$children)
+data$region = recode(data$region, "southeast" = "south", "southwest" = "south", "northeast" = "north", "northwest" = "north")
+head(data)
+```
+Scaler functions
+```{r}
+min_max_scaler <- function(values){
+  scaled_data = (values - min(values)) / (max(values) - min(values))
+  return(scaled_data)
+}
+
+descaler <- function(values, max, min){
+  descaled_data = values*(max-min) + min
+  return(descaled_data)
+}
+```
+Scale the data
+```{r}
+data$scaled_charges = min_max_scaler(data$charges)
+data$scaled_age = min_max_scaler(data$age)
+data$scaled_bmi = min_max_scaler(data$bmi)
+data$scaled_children = min_max_scaler(data$children)
+```
+Train / test data
+```{r}
+inTrain <- createDataPartition(
+  y = data$smoker,
+  ## the outcome data are needed
+  p = .75,
+  ## The percentage of data in the
+  ## training set
+  list = FALSE
+)
+
+train_data <- data[inTrain,]
+test_data <- data[-inTrain,]
+```
+
+Basic frequentist linear model
+```{r}
+basic_model = lm(charges~age+sex+bmi+children+smoker+region, data = data) #Create the linear regression
+summary(basic_model) #Review the results
+```
+Check the data balance
+```{r}
+crosstable(data, c(smoker,), by=region)
+```
+
+Baseline model
+```{r}
+pr = prior(normal(0,1), class = 'b') 
+
+model_basic = brm(
+  scaled_charges ~ scaled_age,
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+summary(model_basic)
+loo_basic = loo(model_basic)
+```
+
+```{r}
+summary(model_basic)
+loo_basic = loo(model_basic)
+```
+
+More complex model
+```{r}
+pr = prior(normal(0, 1), class = 'b')
+
+model_complex = brm(
+  scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children + region + smoker, 
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+```
+
+```{r}
+summary(model_complex)
+loo_complex = loo(model_complex)
+```
+
+Hierarchical model
+```{r}
+pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+      prior(normal(0,1), class = "b", coef = "sexmale") +
+      prior(normal(0,1), class="b", coef ="scaled_bmi") +
+      prior(normal(0,1), class="b", coef ="scaled_children") +
+      prior(student_t(3,0,0.1), class="sd", group="region") +
+      prior(student_t(3,0,0.1), class="sd", group="smoker")
+      )
+
+model_hierarchical = brm(
+  scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children + (1|region) + (1|smoker),
+  data  = train_data,
+  prior = pr,
+  cores = 4,
+  control = list(adapt_delta = 0.9)
+)
+```
+
+```{r}
+summary(model_hierarchical)
+loo_hierarchical = loo(model_hierarchical)
+```
+
+Loo comparison
+```{r}
+loo_compare(loo_basic,loo_complex,loo_hierarchical)
+```
+
+Posterior prediction with test data
+```{r}
+pp_basic = posterior_predict(model_basic,newdata=test_data)
+pp_complex = posterior_predict(model_complex,newdata=test_data)
+pp_hierarchical = posterior_predict(model_hierarchical,newdata=test_data)
+
+# descaling the data
+cmax = max(train_data$charges)
+cmin = min(train_data$charges)
+
+pp_basic = descaler(pp_basic, cmax, cmin)
+pp_complex = descaler(pp_complex, cmax, cmin)
+pp_hierarchical = descaler(pp_hierarchical, cmax, cmin)
+```
+
+Calculate prediction errors
+```{r}
+calculate_rmse <- function(true,predicted){
+  rmse = sqrt(mean((true - predicted)^2)) 
+  return(rmse)
+}
+
+rmse_basic = calculate_rmse(test_data$charges, pp_basic)
+rmse_complex = calculate_rmse(test_data$charges, pp_complex)
+rmse_hierarchical = calculate_rmse(test_data$charges, pp_hierarchical)
+print("basic model",rmse_basic)
+print("complex model",rmse_complex)
+print("hierarchical model",rmse_hierarchical)
+```
+
+
+

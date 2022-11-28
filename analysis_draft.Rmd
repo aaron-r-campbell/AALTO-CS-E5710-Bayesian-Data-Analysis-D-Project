@@ -36,7 +36,7 @@ SEED <- 614273
 
 Load data
 ```{r}
-data <- read.csv('Machine-Learning-with-R-datasets/insurance.csv')
+data <- read.csv('https://raw.githubusercontent.com/aaron-r-campbell/AALTO-CS-E5710-Bayesian-Data-Analysis-D-Project/main/Machine-Learning-with-R-datasets/insurance.csv')
 head(data)
 ```
 
@@ -71,7 +71,7 @@ data$scaled_children = min_max_scaler(data$children)
 Train / test data
 ```{r}
 inTrain <- createDataPartition(
-  y = data$smoker,
+  y = data$charges,
   ## the outcome data are needed
   p = .75,
   ## The percentage of data in the

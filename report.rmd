@@ -18,10 +18,11 @@ In the United States of America (USA), the health insurance system runs on a pri
 
 see figure \ref{fig1}.
 
-\begin{figure}
+\begin{figure}[htp]
   \centering
-  \includegraphics[height=0.5\textwidth]{./img/insurance_charge_distribution.pdf}
-  \caption{Distribution of medical costs billed by insurance. Data from the Kaggle dataset. \label{fig1}}
+  \includegraphics[height=0.5\textwidth]{figures/dist_charge.pdf}
+  \caption{Distribution of medical costs billed by insurance. Data from the Kaggle dataset.}
+  \label{fig1}
 \end{figure}
 
 Ultimately, approximating the expected value of future medical charges for a customer is a challenging feat. It would be beneficial for the health insurance company to be able to predict this future expense claim cost using easily obtainable information on their clients such as age, sex, BMI, and other relevant factors. This would allow the insurance company to decide on a reasonable monthly insurance payment to cover the expected cost of this customer.

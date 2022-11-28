@@ -67,6 +67,7 @@ data$scaled_charges = min_max_scaler(data$charges)
 data$scaled_age = min_max_scaler(data$age)
 data$scaled_bmi = min_max_scaler(data$bmi)
 data$scaled_children = min_max_scaler(data$children)
+head(data)
 ```
 Train / test data
 ```{r}
@@ -105,84 +106,206 @@ Check the data balance
 crosstable(data, c(smoker,), by=region)
 ```
 
-Baseline model
+PRIORS:
+
 ```{r}
+# Prior choice (used for all the models except the hierarchical model)
 pr = prior(normal(0,1), class = 'b') 
 
-model_basic = brm(
+pr2 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+            prior(student_t(3,0,0.1), class="sd", group="smoker"))
+
+pr3 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(normal(0,1), class="b", coef ="scaled_bmi") +
+       prior(student_t(3,0,0.1), class="sd", group="smoker"))
+
+pr4 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(normal(0,1), class="b", coef ="scaled_bmi") +
+       prior(student_t(3,0,0.1), class="sd", group="smoker") + 
+       prior(student_t(3,0,0.1), class="sd", group="region"))
+
+pr5 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+      prior(normal(0,1), class = "b", coef = "sexmale") +
+      prior(normal(0,1), class="b", coef ="scaled_bmi") +
+      prior(normal(0,1), class="b", coef ="scaled_children") +
+      prior(student_t(3,0,0.1), class="sd", group="region") +
+      prior(student_t(3,0,0.1), class="sd", group="smoker"))
+
+```
+
+MODELS:
+```{r message=FALSE, warning=FALSE, results='hide'}
+# Baseline model
+model_baseline = brm(
   scaled_charges ~ scaled_age,
   data  = train_data,
   prior = pr,
   cores = 4
 )
-summary(model_basic)
-loo_basic = loo(model_basic)
+
+# 2 effect model with BMI
+model_2_test1 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi, 
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+
+# 2 effect non-hierarchical model with smoker
+model_2_test2 = brm(
+  scaled_charges ~ scaled_age + smoker, 
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+
+# 2 effect hierarchical model with smoker
+model_2 = brm(
+  scaled_charges ~ scaled_age + (1|smoker), 
+  data  = train_data,
+  prior = pr2,
+  cores = 4
+)
 ```
 
-```{r}
-summary(model_basic)
-loo_basic = loo(model_basic)
-```
 
-More complex model
-```{r}
-pr = prior(normal(0, 1), class = 'b')
+```{r message=FALSE, warning=FALSE, results='hide'}
+# 3 effect hierarchical model
+model_3 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker), 
+  data  = train_data,
+  prior = pr3,
+  cores = 4
+)
 
-model_complex = brm(
+# 4 effect hierarchical model
+model_4 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region), 
+  data  = train_data,
+  prior = pr4,
+  cores = 4
+)
+
+# 5 effect non-hierarchical model
+model_5_non_hier = brm(
   scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children + region + smoker, 
   data  = train_data,
   prior = pr,
   cores = 4
 )
-```
 
-```{r}
-summary(model_complex)
-loo_complex = loo(model_complex)
-```
-
-Hierarchical model
-```{r}
-pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
-      prior(normal(0,1), class = "b", coef = "sexmale") +
-      prior(normal(0,1), class="b", coef ="scaled_bmi") +
-      prior(normal(0,1), class="b", coef ="scaled_children") +
-      prior(student_t(3,0,0.1), class="sd", group="region") +
-      prior(student_t(3,0,0.1), class="sd", group="smoker")
-      )
-
-model_hierarchical = brm(
+# 5 effect hierarchical model
+model_5 = brm(
   scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children + (1|region) + (1|smoker),
   data  = train_data,
-  prior = pr,
+  prior = pr5,
   cores = 4,
   control = list(adapt_delta = 0.9)
 )
 ```
 
 ```{r}
-summary(model_hierarchical)
-loo_hierarchical = loo(model_hierarchical)
+summary(model_baseline)
+loo_baseline = loo(model_baseline)
+loo_baseline
+```
+
+```{r}
+summary(model_2_test1)
+loo_2_test1 = loo(model_2_test1)
+loo_2_test1
+```
+```{r}
+summary(model_2_test2)
+loo_2_test2 = loo(model_2_test2)
+loo_2_test2
+```
+
+
+```{r}
+summary(model_2)
+loo_2 = loo(model_2)
+loo_2
+```
+
+
+```{r}
+summary(model_3)
+loo_3 = loo(model_3)
+loo_3
+```
+
+
+
+```{r}
+summary(model_4)
+loo_4 = loo(model_4)
+loo_4
+```
+
+
+
+
+
+```{r}
+summary(model_5_non_hier)
+loo_5_non_hier = loo(model_5_non_hier)
+loo_5_non_hier
+```
+
+
+
+```{r}
+summary(model_5)
+loo_5 = loo(model_5)
+loo_5
 ```
 
 Loo comparison
 ```{r}
-loo_compare(loo_basic,loo_complex,loo_hierarchical)
+loo_compare(loo_baseline,loo_2_test1,loo_2_test2,loo_2,loo_3,loo_4,loo_5_non_hier,loo_5)
 ```
+
+```{r}
+p1 <- pp_check(model_baseline) +
+  ggtitle("Baseline model")
+p2 <- pp_check(model_2) +
+  ggtitle("2 effect model ")
+p3 <- pp_check(model_3) +
+  ggtitle("3 effect model ")
+p4 <- pp_check(model_4) +
+  ggtitle("4 effect model ")
+p5 <- pp_check(model_5_non_hier) +
+  ggtitle("5 effect non-hierarchical model")
+p6 <- pp_check(model_5) +
+  ggtitle("5 effect hierarchical model ")
+```
+```{r, fig.width=12, fig.height=8}
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow=3)
+```
+
+
+
 
 Posterior prediction with test data
 ```{r}
-pp_basic = posterior_predict(model_basic,newdata=test_data)
-pp_complex = posterior_predict(model_complex,newdata=test_data)
-pp_hierarchical = posterior_predict(model_hierarchical,newdata=test_data)
+pp_baseline = posterior_predict(model_baseline,newdata=test_data)
+pp_2 = posterior_predict(model_2,newdata=test_data)
+pp_3 = posterior_predict(model_3,newdata=test_data)
+pp_4 = posterior_predict(model_4,newdata=test_data)
+pp_5_non_hier = posterior_predict(model_5_non_hier,newdata=test_data)
+pp_5 = posterior_predict(model_5,newdata=test_data)
 
 # descaling the data
 cmax = max(train_data$charges)
 cmin = min(train_data$charges)
 
-pp_basic = descaler(pp_basic, cmax, cmin)
-pp_complex = descaler(pp_complex, cmax, cmin)
-pp_hierarchical = descaler(pp_hierarchical, cmax, cmin)
+pp_baseline = descaler(pp_baseline, cmax, cmin)
+pp_2 = descaler(pp_2, cmax, cmin)
+pp_3 = descaler(pp_3, cmax, cmin)
+pp_4 = descaler(pp_4, cmax, cmin)
+pp_5_non_hier = descaler(pp_5_non_hier, cmax, cmin)
+pp_5 = descaler(pp_5, cmax, cmin)
 ```
 
 Calculate prediction errors
@@ -192,12 +315,31 @@ calculate_rmse <- function(true,predicted){
   return(rmse)
 }
 
-rmse_basic = calculate_rmse(test_data$charges, pp_basic)
-rmse_complex = calculate_rmse(test_data$charges, pp_complex)
-rmse_hierarchical = calculate_rmse(test_data$charges, pp_hierarchical)
-print("basic model",rmse_basic)
-print("complex model",rmse_complex)
-print("hierarchical model",rmse_hierarchical)
+calculate_r2 <- function(true, predicted){
+  rss = sum((predicted - true)^2)
+  tss = sum((true - mean(true))^2)
+  return(1 - rss/tss)
+}
+
+rmse_baseline = calculate_rmse(test_data$charges, pp_baseline)
+rmse_2 = calculate_rmse(test_data$charges, pp_2)
+rmse_3 = calculate_rmse(test_data$charges, pp_3)
+rmse_4 = calculate_rmse(test_data$charges, pp_4)
+rmse_5_non_hier = calculate_rmse(test_data$charges, pp_5_non_hier)
+rmse_5 = calculate_rmse(test_data$charges, pp_5)
+
+#r2_baseline = calculate_r2(test_data$charges, pp_basic)
+#r2_5 = calculate_r2(test_data$charges, pp_complex)
+
+sprintf("Baseline model RMSE: %s", rmse_baseline)
+sprintf("2 effect model RMSE: %s", rmse_2)
+sprintf("3 effect model RMSE: %s", rmse_3)
+sprintf("4 effect model RMSE: %s", rmse_4)
+sprintf("5 effect non-hierarchical model RMSE: %s", rmse_5_non_hier)
+sprintf("5 effect hierarchical model RMSE: %s", rmse_5)
+
+#sprintf("Baseline model R2: %s", r2_baseline)
+#sprintf("5 effect model R2: %s", r2_5)
 ```
 
 

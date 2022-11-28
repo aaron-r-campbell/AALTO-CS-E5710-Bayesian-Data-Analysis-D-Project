@@ -81,6 +81,18 @@ inTrain <- createDataPartition(
 
 train_data <- data[inTrain,]
 test_data <- data[-inTrain,]
+cat(paste0('train_data: ',dim(train_data)[1],' observations\ntest_data:  ',dim(test_data)[1],' observations\n'))
+```
+
+Distributions of the variables:
+```{r}
+ggplot(data, aes(x=age)) + geom_histogram(fill="#CDC9C9", color="#000000", breaks=seq(min(data$age),max(data$age),length.out=11)) + scale_x_continuous(breaks=as.integer(seq(min(data$age), max(data$age), length.out=11))) + labs(title="Distribution of age in the dataset.",x="Age (years)", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=sex)) + geom_bar(fill="#CDC9C9", color="#000000", width=0.5) + geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5) + labs(title="Distribution of sex in the dataset.",x="Sex", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=bmi)) + geom_histogram(fill="#CDC9C9", color="#000000") + scale_x_continuous(breaks=as.integer(seq(min(data$bmi), max(data$bmi), length.out=11))) + labs(title="Distribution of BMI in the dataset.",x="BMI (kg/m^2)", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=children)) + geom_bar(fill="#CDC9C9", color="#000000") + scale_x_continuous(breaks=min(data$children):max(data$children), labels=sapply(min(data$children):max(data$children), function(x) toString(x))) + labs(title="Distribution of children in the dataset.",x="Number of children", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=smoker)) + geom_bar(fill="#CDC9C9", color="#000000", width=0.5) + labs(title="Distribution of smoking status in the dataset.",x="Smoking status", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=region)) + geom_bar(fill="#CDC9C9", color="#000000", width=0.5) + labs(title="Distribution of region in the dataset.",x="Region in USA", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
+ggplot(data, aes(x=charges)) + geom_histogram(fill="#CDC9C9", color="#000000") + labs(title="Distribution of charges in the dataset.",x="Price ($)", y="Frequency") + theme(text=element_text(size=20), plot.title = element_text(hjust = 0.5))
 ```
 
 Basic frequentist linear model

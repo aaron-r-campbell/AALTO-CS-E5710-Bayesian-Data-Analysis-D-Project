@@ -1,0 +1,268 @@
+---
+title: "BDA - Project brms library test"
+author: "Arsi Ikäheimonen"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(aaltobda)
+library(cmdstanr)
+library(brms)
+library(ggplot2)
+library(gridExtra)
+library(bayesplot)
+library(ggdist)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+library(rprojroot)
+library(brms)
+library(caret)
+library(corrplot)
+library(dplyr)
+library(crosstable)
+library(lme4)
+SEED <- 614273
+```
+
+
+Load data
+```{r}
+data <- read.csv('Machine-Learning-with-R-datasets/insurance.csv')
+head(data)
+```
+
+Typecasting
+```{r}
+data$region <- as.factor(data$region)
+data$sex <- as.factor(data$sex)
+data$smoker <- as.factor(data$smoker)
+data$children <- as.integer(data$children)
+data$region = recode(data$region, "southeast" = "south", "southwest" = "south", "northeast" = "north", "northwest" = "north")
+head(data)
+```
+Scaler functions
+```{r}
+min_max_scaler <- function(values){
+  scaled_data = (values - min(values)) / (max(values) - min(values))
+  return(scaled_data)
+}
+
+descaler <- function(values, max, min){
+  descaled_data = values*(max-min) + min
+  return(descaled_data)
+}
+```
+Scale the data
+```{r}
+#data$log_charges = log(data$charges)
+data$scaled_charges = min_max_scaler(data$charges) # log transform and scaling here at the same time
+data$scaled_age = min_max_scaler(data$age)
+data$scaled_bmi = min_max_scaler(data$bmi)
+data$scaled_children = min_max_scaler(data$children)
+```
+Train / test data
+```{r}
+inTrain <- createDataPartition(
+  y = data$smoker,
+  ## the outcome data are needed
+  p = .75,
+  ## The percentage of data in the
+  ## training set
+  list = FALSE
+)
+
+train_data <- data[inTrain,]
+test_data <- data[-inTrain,]
+```
+
+Basic frequentist linear model
+```{r}
+basic_model = lmer(formula = scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region), data = train_data) #Create the linear regression
+summary(basic_model) #Review the results
+```
+Check the data balance
+```{r}
+crosstable(data, c(smoker,), by=region)
+```
+
+Baseline model
+```{r}
+pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+      prior(normal(0,1), class="b", coef ="scaled_bmi") +
+      prior(student_t(3,0,1), class="sd", group="region") +
+      prior(student_t(3,0,1), class="sd", group="smoker")
+     )
+
+model_1 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+summary(model_1)
+loo_1 = loo(model_1)
+```
+```{r}
+pr = (prior(normal(.5,.5), class = "b", coef = "scaled_age") +
+      prior(normal(.5,.5), class="b", coef ="scaled_bmi") +
+      prior(student_t(3,.5,.5), class="sd", group="region") +
+      prior(student_t(3,.5,.5), class="sd", group="smoker")
+     )
+
+model_2 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+summary(model_2)
+loo_2 = loo(model_2)
+```
+```{r}
+pr = (prior(normal(0,0.1), class = "b", coef = "scaled_age") +
+      prior(normal(0,0.1), class="b", coef ="scaled_bmi") +
+      prior(student_t(3,0,0.1), class="sd", group="region") +
+      prior(student_t(3,0,0.1), class="sd", group="smoker")
+     )
+
+model_3 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr,
+  cores = 4
+)
+summary(model_3)
+loo_3 = loo(model_3)
+```
+```{r}
+pr = (prior(normal(0,10), class = "b", coef = "scaled_age") +
+      prior(normal(0,10), class="b", coef ="scaled_bmi") +
+      prior(student_t(3,0,10), lb=0,ub=0, class="sd", group="region") +
+      prior(student_t(3,0,10), lb=0,ub=0, class="sd", group="smoker")
+     )
+
+model_4 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+  data  = train_data,
+  cores = 4
+)
+summary(model_4)
+loo_4 = loo(model_4)
+```
+
+Loo comparison
+```{r}
+loo_compare(loo_1,loo_2,loo_3,loo_4)
+```
+Residuals
+```{r}
+hist(residuals(model_1))
+hist(residuals(model_2))
+hist(residuals(model_3))
+hist(residuals(model_4))
+```
+
+Posterior prediction with test data
+```{r}
+pp_1 = posterior_predict(model_1,newdata=test_data)
+pp_2 = posterior_predict(model_2,newdata=test_data)
+pp_3 = posterior_predict(model_3,newdata=test_data)
+pp_4 = posterior_predict(model_4,newdata=test_data)
+pp_lm = predict(basic_model, newdata=test_data)
+
+rs_1 = bayes_R2(model_1, newdata = test_data)
+rs_2 = bayes_R2(model_2, newdata = test_data)
+rs_3 = bayes_R2(model_3, newdata = test_data)
+rs_4 = bayes_R2(model_4, newdata = test_data)
+
+sprintf("Model 1 R-squared: %f", median(rs_1))
+sprintf("Model 2 R-squared: %f", median(rs_2))
+sprintf("Model 3 R-squared: %f", median(rs_3))
+sprintf("Model 4 R-squared: %f", median(rs_4))
+
+# descaling the data
+cmax = max(train_data$charges)
+cmin = min(train_data$charges)
+
+# these are still log values
+pp_1_des = descaler(colMeans(pp_1), cmax, cmin)
+pp_2_des = descaler(colMeans(pp_2), cmax, cmin)
+pp_3_des = descaler(colMeans(pp_3), cmax, cmin)
+pp_4_des = descaler(colMeans(pp_4), cmax, cmin)
+pp_lm_des = descaler(pp_lm, cmax, cmin)
+```
+
+Calculate prediction errors
+```{r}
+calculate_rmse <- function(true,predicted){
+  rmse = sqrt(mean((true - predicted)^2)) 
+  return(rmse)
+}
+
+calculate_r2 <- function(true, predicted){
+  rss = sum((true - predicted)^2)
+  tss = sum((true - mean(true))^2)
+  return(1 - rss/tss)
+}
+
+rmse_1 = calculate_rmse(test_data$charges, (pp_1_des))
+rmse_2 = calculate_rmse(test_data$charges, (pp_2_des))
+rmse_3 = calculate_rmse(test_data$charges, (pp_3_des))
+rmse_4 = calculate_rmse(test_data$charges, (pp_4_des))
+rmse_lm = calculate_rmse(test_data$charges, (pp_lm_des))
+
+r2_1 = calculate_r2(test_data$charges, (pp_1_des))
+r2_2 = calculate_r2(test_data$charges, (pp_2_des))
+r2_3 = calculate_r2(test_data$charges, (pp_3_des))
+r2_4 = calculate_r2(test_data$charges, (pp_4_des))
+r2_lm = calculate_r2(test_data$charges, (pp_lm_des))
+
+sprintf("Model_1: %f", rmse_1)
+sprintf("Model_2: %f", rmse_2)
+sprintf("Model_3: %f", rmse_3)
+sprintf("Model_4: %f", rmse_4)
+sprintf("Basic linear mixed model: %f", rmse_lm)
+
+sprintf("Model_1: %f", r2_1)
+sprintf("Model_2: %f", r2_2)
+sprintf("Model_3: %f", r2_3)
+sprintf("Model_4: %f", r2_4)
+sprintf("Basic linear mixed model: %f", r2_lm)
+
+```
+```{r}
+p1 = ggplot(test_data, aes(x=charges)) + geom_density()
+p2 = ggplot() + geom_density(aes(x=pp_1_des))
+p3 = ggplot() + geom_density(aes(x=pp_2_des))
+p4 = ggplot() + geom_density(aes(x=pp_3_des))
+p5 = ggplot() + geom_density(aes(x=pp_4_des))
+p6 = ggplot() + geom_density(aes(x=pp_lm_des))
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,107 @@
+---
+title: "BDA - Project data plotting"
+author: "Aaron Campbell"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+```
+
+Load data
+```{r}
+data <- read.csv('https://raw.githubusercontent.com/aaron-r-campbell/AALTO-CS-E5710-Bayesian-Data-Analysis-D-Project/main/Machine-Learning-with-R-datasets/insurance.csv')
+head(data)
+```
+
+Typecasting
+```{r}
+data$region <- as.factor(data$region)
+data$sex <- as.factor(data$sex)
+data$smoker <- as.factor(data$smoker)
+data$children <- as.integer(data$children)
+data$region = recode(data$region, "southeast" = "south", "southwest" = "south", "northeast" = "north", "northwest" = "north")
+head(data)
+```
+
+Plotting Variables
+```{r}
+age_fig <- ggplot(data, aes(x=age)) + 
+    geom_histogram(fill="#d3d3d3",color="#000000",breaks=seq(min(data$age),max(data$age),length.out=11), bins=10) +
+    labs(x="Age (years)", y="Frequency") + 
+    scale_x_continuous(breaks=as.integer(seq(min(data$age), max(data$age), length.out=6)))
+   
+sex_fig <- ggplot(data, aes(x=sex)) + 
+    geom_bar(fill="#d3d3d3",color="#000000",width=0.5) +
+    labs(x="Sex", y="Frequency") +
+    geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5) + 
+    coord_cartesian(ylim=c(0,700))
+   
+bmi_fig <- ggplot(data, aes(x=bmi)) + 
+    geom_histogram(fill="#d3d3d3",color="#000000", bins=30) +
+    labs(x=expression(paste('BMI ', bgroup("(", frac("kg","m"^2), ")"))), y="Frequency") +
+    scale_x_continuous(breaks=as.integer(seq(min(data$bmi), max(data$bmi), length.out=5)))
+   
+children_fig <- ggplot(data, aes(x=children)) + 
+    geom_bar(fill="#d3d3d3",color="#000000") +
+    labs(x="Number of children", y="Frequency") +
+    geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5) + 
+    scale_x_continuous(breaks=min(data$children):max(data$children), labels=sapply(min(data$children):max(data$children), function(x) toString(x))) +
+    coord_cartesian(ylim=c(0,600))
+   
+smoker_fig <- ggplot(data, aes(x=smoker)) +
+    geom_bar(fill="#d3d3d3",color="#000000",width=0.5) +
+    labs(x="Smoker", y="Frequency") +
+    geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5) +
+    coord_cartesian(ylim=c(0,1150))
+   
+region_fig <- ggplot(data, aes(x=region)) + 
+    geom_bar(fill="#d3d3d3",color="#000000",width=0.5) +
+    labs(x="Region (USA)", y="Frequency") +
+    geom_text(stat='count', aes(label=after_stat(count)), vjust=-0.5) +
+    coord_cartesian(ylim=c(0,730))
+   
+charges_fig <- ggplot(data, aes(x=charges)) + 
+    geom_histogram(fill="#d3d3d3",color="#000000", bins=30) +
+    labs(x="Price ($)", y="Frequency")
+```
+
+Plotting in single figure
+```{r Fig1, echo=TRUE,results='hide',fig.keep='all', fig.height=12, fig.width=8}
+multi_plot_theme <- theme(text = element_text(size = 15))
+
+all_fig <- (age_fig + multi_plot_theme + sex_fig + multi_plot_theme) /
+    (bmi_fig + multi_plot_theme + region_fig + multi_plot_theme) /
+    (children_fig + multi_plot_theme + smoker_fig + multi_plot_theme) /
+    charges_fig + multi_plot_theme +
+    plot_annotation(tag_levels = 'A') +
+    plot_layout(heights = c(1,1,1,1.5))
+
+all_fig
+ggsave("dist_all.pdf", plot = all_fig, width = 8, height = 12)
+```
+
+Plotting Individual Distributions
+```{r, echo=TRUE,results='hide'}
+single_plot_theme <- theme(text = element_text(size = 30))
+ggsave("dist_age.pdf", plot = age_fig + single_plot_theme)
+ggsave("dist_sex.pdf", plot = sex_fig + single_plot_theme)
+ggsave("dist_bmi.pdf", plot = bmi_fig + single_plot_theme)
+ggsave("dist_children.pdf", plot = children_fig + single_plot_theme)
+ggsave("dist_smoker.pdf", plot = smoker_fig + single_plot_theme)
+ggsave("dist_region.pdf", plot = region_fig + single_plot_theme)
+ggsave("dist_charge.pdf", plot = charges_fig + single_plot_theme)
+```

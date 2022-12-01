@@ -112,69 +112,86 @@ basic_model = lmer(formula = scaled_charges ~ scaled_age + scaled_bmi + children
 summary(basic_model)
 ```
 
+Define model configuration
+```{r}
+config = c(
+  data = train_data,
+  cores = 4,
+  iter = 4000,
+  warmup = 400
+)
+```
+
 Train the Bayesian models
 ```{r message=FALSE, warning=FALSE, results='hide'}
 model_1 = brm(
   scaled_charges ~ scaled_age,
-  data  = train_data,
   prior = pr1,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_1"
+  file = "./Models/model_1",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_2 = brm(
   scaled_charges ~ scaled_age + (1|smoker),
-  data  = train_data,
   prior = pr2,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_2"
+  file = "./Models/model_2",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_3 = brm(
   scaled_charges ~ scaled_age + scaled_bmi + (1|smoker),
-  data  = train_data,
   prior = pr3,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_3"
+  file = "./Models/model_3",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_4 = brm(
   scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
-  data  = train_data,
   prior = pr4,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_4"
+  file = "./Models/model_4",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_5 = brm(
   scaled_charges ~ scaled_age + scaled_bmi + scaled_children + (1|smoker) + (1|region),
-  data  = train_data,
   prior = pr5,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_5"
+  file = "./Models/model_5",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_6_1 = brm(
   scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  smoker + region,
-  data  = train_data,
   prior = pr6_1,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_6_1"
+  file = "./Models/model_6_1",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 
 model_6_2 = brm(
   scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  (1|smoker) + (1|region),
-  data  = train_data,
   prior = pr6_2,
-  cores = 4,
-  iter = 4000,
-  file = "./Models/model_6_2"
+  file = "./Models/model_6_2",
+  data = config.data,
+  cores = config.cores,
+  iter = config.iter,
+  warmup = config.warmup
 )
 ```
 

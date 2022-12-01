@@ -121,7 +121,7 @@ model_1 = brm(
   data  = train_data,
   prior = pr,
   cores = 4,
-  iter = 8000,
+  iter = 4000,
   file = "./models/model_1_effect"
 )
 summary(model_1)

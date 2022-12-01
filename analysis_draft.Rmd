@@ -131,9 +131,7 @@ charges_fig <- ggplot(data, aes(x=charges)) +
 Plotting in single figure
 ```{r Fig1, echo=TRUE, fig.height=12, fig.width=8}
 fig <- (age_fig+sex_fig)/(bmi_fig+region_fig)/(children_fig+smoker_fig)/charges_fig +
-    plot_annotation(
-        title = 'Distribution of the explanitory variables.',
-        tag_levels = 'A') +
+    plot_annotation(tag_levels = 'A') +
     plot_layout(heights = c(1,1,1,1.5))
 fig
 ggsave("dist_all.pdf", plot = fig, width = 8, height = 12)

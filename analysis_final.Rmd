@@ -1,0 +1,382 @@
+---
+title: "BDA - Project brms library test"
+author: "Eetu Suominen"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 1
+  html_document:
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+urlcolor: blue
+---
+
+\newpage
+
+Load packages
+```{r message=FALSE, warning=FALSE}
+library(aaltobda)
+library(cmdstanr)
+library(brms)
+library(ggplot2); theme_set(theme_grey())
+library(grid)
+library(gridExtra)
+library(bayesplot)
+library(ggdist)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+library(rprojroot)
+library(brms)
+library(caret)
+library(corrplot)
+library(dplyr)
+library(crosstable)
+library(lme4)
+SEED <- 614273
+
+```
+
+Scaler functions
+```{r}
+min_max_scaler <- function(values){
+  scaled_data = (values - min(values)) / (max(values) - min(values))
+  return(scaled_data)
+}
+
+descaler <- function(values, max, min){
+  descaled_data = values*(max-min) + min
+  return(descaled_data)
+}
+
+standardize <- function(values){
+  standardized_data = (values - mean(values)) / sd(values)
+  return(standardized_data)
+}
+
+de_standardize <- function(values,sd_values, mean_values){
+  de_standardized_data = values*sd_values + mean_values
+  return(de_standardized_data)
+}
+```
+
+
+# Train / test data
+
+```{r}
+train_data <- read.csv('./Data/train-data.csv')
+test_data <- read.csv('./Data/test-data.csv')
+
+```
+
+# Prios
+
+```{r}
+pr1 = (prior(normal(0,1), class = "b", coef = "scaled_age"))
+
+
+pr2 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(student_t(3,0,1), class="sd", group="smoker"))
+
+pr3 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(normal(0,1), class="b", coef ="scaled_bmi") +
+       prior(student_t(3,0,1), class="sd", group="smoker"))
+
+pr4 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(normal(0,1), class="b", coef ="scaled_bmi") +
+       prior(student_t(3,0,1), class="sd", group="smoker") +
+       prior(student_t(3,0,1), class="sd", group="region"))
+
+pr5 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+       prior(normal(0,1), class="b", coef ="scaled_bmi") +
+       prior(normal(0,1), class="b", coef ="scaled_children") +
+       prior(student_t(3,0,1), class="sd", group="smoker") +
+       prior(student_t(3,0,1), class="sd", group="region"))
+
+pr6_1 = prior(normal(0,1), class = 'b') 
+
+pr6_2 = (prior(normal(0,1), class = "b", coef = "scaled_age") +
+         prior(normal(0,1), class = "b", coef = "sexmale") +
+         prior(normal(0,1), class="b", coef ="scaled_bmi") +
+         prior(normal(0,1), class="b", coef ="scaled_children") +
+         prior(student_t(3,0,1), class="sd", group="smoker") +
+         prior(student_t(3,0,1), class="sd", group="region"))
+ 
+```
+
+
+# Models
+
+Frequentist model
+```{r}
+basic_model = lmer(formula = scaled_charges ~ scaled_age + scaled_bmi + children + sex + (1|smoker) + (1|region), data = train_data) 
+summary(basic_model)
+```
+
+Train the Bayesian models
+```{r message=FALSE, warning=FALSE, results='hide'}
+model_1 = brm(
+  scaled_charges ~ scaled_age,
+  data  = train_data,
+  prior = pr1,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_1"
+)
+
+model_2 = brm(
+  scaled_charges ~ scaled_age + (1|smoker),
+  data  = train_data,
+  prior = pr2,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_2"
+)
+
+model_3 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker),
+  data  = train_data,
+  prior = pr3,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_3"
+)
+
+model_4 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr4,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_4"
+)
+
+model_5 = brm(
+  scaled_charges ~ scaled_age + scaled_bmi + scaled_children + (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr5,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_5"
+)
+
+model_6_1 = brm(
+  scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  smoker + region,
+  data  = train_data,
+  prior = pr6_1,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_6_1"
+)
+
+model_6_2 = brm(
+  scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  (1|smoker) + (1|region),
+  data  = train_data,
+  prior = pr6_2,
+  cores = 4,
+  iter = 4000,
+  file = "./Models/model_6_2"
+)
+```
+
+# Convergence diagnostics
+
+```{r}
+summary(model_1)
+loo_1 = loo(model_1)
+loo_1
+```
+
+```{r}
+summary(model_2)
+loo_2 = loo(model_2)
+loo_2
+```
+
+```{r}
+summary(model_3)
+loo_3 = loo(model_3)
+loo_3
+```
+
+
+```{r}
+summary(model_4)
+loo_4 = loo(model_4)
+loo_4
+```
+
+```{r}
+summary(model_5)
+loo_5 = loo(model_5)
+loo_5
+```
+
+```{r}
+summary(model_6_1)
+loo_6_1 = loo(model_6_1)
+loo_6_1
+```
+```{r}
+summary(model_6_2)
+loo_6_2 = loo(model_6_2)
+loo_6_2
+```
+
+
+Loo comparison
+```{r}
+loo_compare(loo_1,loo_2,loo_3,loo_4,loo_5,loo_6_1,loo_6_2)
+```
+
+
+# Posterior predictive checks
+
+```{r message=FALSE, warning=FALSE}
+p1 <- pp_check(model_1) +
+  ggtitle("1 effect model")
+p2 <- pp_check(model_2) +
+  ggtitle("2 effect model ")
+p3 <- pp_check(model_3) +
+  ggtitle("3 effect model ")
+p4 <- pp_check(model_4) +
+  ggtitle("4 effect model ")
+p5 <- pp_check(model_5) +
+  ggtitle("5 effect model")
+p6_1 <- pp_check(model_6_1) +
+  ggtitle("6 effect non-hierarchical model")
+p6_2 <- pp_check(model_6_2) +
+  ggtitle("6 effect hierarchical model")
+```
+
+```{r, fig.width=12, fig.height=10}
+grid.arrange(p1, p2, p3, p4, p5, p6_1, p6_2, nrow=4)
+```
+
+
+# Predictive performance assessment with test data
+```{r}
+pp_1 = posterior_predict(model_1,newdata=test_data)
+pp_2 = posterior_predict(model_2,newdata=test_data)
+pp_3 = posterior_predict(model_3,newdata=test_data)
+pp_4 = posterior_predict(model_4,newdata=test_data)
+pp_5 = posterior_predict(model_5,newdata=test_data)
+pp_6_1 = posterior_predict(model_6_1,newdata=test_data)
+pp_6_2 = posterior_predict(model_6_2,newdata=test_data)
+pp_lm = predict(basic_model, newdata=test_data)
+
+rs_1 = bayes_R2(model_1, newdata = test_data)
+rs_2 = bayes_R2(model_2, newdata = test_data)
+rs_3 = bayes_R2(model_3, newdata = test_data)
+rs_4 = bayes_R2(model_4, newdata = test_data)
+rs_5 = bayes_R2(model_5, newdata = test_data)
+rs_6_1 = bayes_R2(model_6_1, newdata = test_data)
+rs_6_2 = bayes_R2(model_6_2, newdata = test_data)
+
+sprintf("Model 1 R-squared: %f", median(rs_1))
+sprintf("Model 2 R-squared: %f", median(rs_2))
+sprintf("Model 3 R-squared: %f", median(rs_3))
+sprintf("Model 4 R-squared: %f", median(rs_4))
+sprintf("Model 5 R-squared: %f", median(rs_5))
+sprintf("Model 6_1 R-squared: %f", median(rs_6_1))
+sprintf("Model 6_2 R-squared: %f", median(rs_6_2))
+
+
+# descaling the data
+c_sd = sd(train_data$charges)
+c_mean = mean(train_data$charges)
+
+# de-scaled values
+pp_1_des = de_standardize(colMeans(pp_1), c_sd, c_mean)
+pp_2_des = de_standardize(colMeans(pp_2), c_sd, c_mean)
+pp_3_des = de_standardize(colMeans(pp_3), c_sd, c_mean)
+pp_4_des = de_standardize(colMeans(pp_4), c_sd, c_mean)
+pp_5_des = de_standardize(colMeans(pp_5), c_sd, c_mean)
+pp_6_1_des = de_standardize(colMeans(pp_6_1), c_sd, c_mean)
+pp_6_2_des = de_standardize(colMeans(pp_6_2), c_sd, c_mean)
+pp_lm_des = de_standardize(pp_lm, c_sd, c_mean)
+
+```
+
+Calculate prediction errors
+```{r}
+calculate_rmse <- function(true,predicted){
+  rmse = sqrt(mean((true - predicted)^2)) 
+  return(rmse)
+}
+
+calculate_r2 <- function(true, predicted){
+  rss = sum((true - predicted)^2)
+  tss = sum((true - mean(true))^2)
+  return(1 - rss/tss)
+}
+
+rmse_1 = calculate_rmse(test_data$charges, (pp_1_des))
+rmse_2 = calculate_rmse(test_data$charges, (pp_2_des))
+rmse_3 = calculate_rmse(test_data$charges, (pp_3_des))
+rmse_4 = calculate_rmse(test_data$charges, (pp_4_des))
+rmse_5 = calculate_rmse(test_data$charges, (pp_5_des))
+rmse_6_1 = calculate_rmse(test_data$charges, (pp_6_1_des))
+rmse_6_2 = calculate_rmse(test_data$charges, (pp_6_2_des))
+rmse_lm = calculate_rmse(test_data$charges, (pp_lm_des))
+
+
+r2_1 = calculate_r2(test_data$charges, (pp_1_des))
+r2_2 = calculate_r2(test_data$charges, (pp_2_des))
+r2_3 = calculate_r2(test_data$charges, (pp_3_des))
+r2_4 = calculate_r2(test_data$charges, (pp_4_des))
+r2_5 = calculate_r2(test_data$charges, (pp_5_des))
+r2_6_1 = calculate_r2(test_data$charges, (pp_6_1_des))
+r2_6_2 = calculate_r2(test_data$charges, (pp_6_2_des))
+r2_lm = calculate_r2(test_data$charges, (pp_lm_des))
+
+
+print("RMSE:")
+sprintf("Model_1: %f", rmse_1)
+sprintf("Model_2: %f", rmse_2)
+sprintf("Model_3: %f", rmse_3)
+sprintf("Model_4: %f", rmse_4)
+sprintf("Model_5: %f", rmse_5)
+sprintf("Model_6_1: %f", rmse_6_1)
+sprintf("Model_6_2: %f", rmse_6_2)
+sprintf("Model_lm: %f", rmse_lm)
+
+print("R^2 scores:")
+sprintf("Model_1: %f", r2_1)
+sprintf("Model_2: %f", r2_2)
+sprintf("Model_3: %f", r2_3)
+sprintf("Model_4: %f", r2_4)
+sprintf("Model_5: %f", r2_5)
+sprintf("Model_6_1: %f", r2_6_1)
+sprintf("Model_6_2: %f", r2_6_2)
+sprintf("Model_lm: %f", r2_lm)
+```
+```{r,fig.width=12,fig.height=8, fig.cap="A nice image."}
+p1 = ggplot(test_data, aes(x=charges)) + geom_density() + theme_gray() + ggtitle("Test data")
+p2 = ggplot() + geom_density(aes(x=pp_1_des)) + theme_gray() + ggtitle("1 effect model") + labs(x = "charges")
+p3 = ggplot() + geom_density(aes(x=pp_2_des)) + theme_gray() + ggtitle("2 effect model") + labs(x = "charges")
+p4 = ggplot() + geom_density(aes(x=pp_3_des)) + theme_gray() + ggtitle("3 effect model") + labs(x = "charges")
+p5 = ggplot() + geom_density(aes(x=pp_4_des)) + theme_gray() + ggtitle("4 effect model") + labs(x = "charges")
+p6 = ggplot() + geom_density(aes(x=pp_5_des)) + theme_gray() + ggtitle("5 effect model") + labs(x = "charges")
+p7 = ggplot() + geom_density(aes(x=pp_6_1_des)) + theme_gray() + ggtitle("6 effect non-hierarchical model") + labs(x = "charges")
+p8 = ggplot() + geom_density(aes(x=pp_6_2_des)) + theme_gray() + ggtitle("6 effect hierarchical model") + labs(x = "charges")
+p9 = ggplot() + geom_density(aes(x=pp_lm_des)) + theme_gray() + ggtitle("Linear Mixed Model") + labs(x = "charges")
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, nrow = 3, top = textGrob("Posterior predictions with test data",gp=gpar(fontsize=20)))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

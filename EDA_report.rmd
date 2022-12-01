@@ -99,7 +99,10 @@ head(data_clean)
 
 ```{r}
 cor_matrix = cor(data_clean)
-corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
+cor_plot <- corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
          cl.pos = 'n')
+cor_plot
+pdf(file="img/corr_matrix.pdf")
+dev.off()
 ```
 

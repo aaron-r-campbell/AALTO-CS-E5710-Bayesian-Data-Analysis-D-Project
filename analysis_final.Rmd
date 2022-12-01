@@ -378,7 +378,9 @@ p7 = ggplot() + geom_density(aes(x=pp_6_1_des)) + theme_gray() + ggtitle("6 effe
 p8 = ggplot() + geom_density(aes(x=pp_6_2_des)) + theme_gray() + ggtitle("6 effect hierarchical model") + labs(x = "charges")
 p9 = ggplot() + geom_density(aes(x=pp_lm_des)) + theme_gray() + ggtitle("Linear Mixed Model") + labs(x = "charges")
 
-grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, nrow = 3, top = textGrob("Posterior predictions with test data",gp=gpar(fontsize=20)))
+posterior_predictions <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, nrow = 3, top = textGrob("Posterior predictions with test data",gp=gpar(fontsize=20)))
+posterior_predictions
+ggsave("img/posterior_predictions.pdf", plot=posterior_predictions)
 ```
 
 

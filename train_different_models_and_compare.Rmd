@@ -93,8 +93,11 @@ inTrain <- createDataPartition(
   list = FALSE
 )
 
-train_data <- data[inTrain,]
-test_data <- data[-inTrain,]
+#train_data <- data[inTrain,]
+#test_data <- data[-inTrain,]
+train_data <- read.csv('./data/train-data.csv')
+test_data <- read.csv('./data/test-data.csv')
+
 ```
 
 
@@ -119,22 +122,24 @@ model_1 = brm(
   prior = pr,
   cores = 4,
   iter = 8000,
-  file = "./model_1_effect"
+  file = "./models/model_1_effect"
 )
 summary(model_1)
 loo_1 = loo(model_1)
 
 pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
-      prior(normal(0,1), class="b", coef ="scaled_bmi"))
+      prior(student_t(3,0,1), class="sd", group="smoker")
+)
 
 model_2 = brm(
-  scaled_charges ~ scaled_age + scaled_bmi,
+  scaled_charges ~ scaled_age + (1|smoker),
   data  = train_data,
   prior = pr,
   cores = 4,
   iter = 4000,
-  file = "./model_2_effect"
+  file = "./models/model_2_effect"
 )
+
 summary(model_2)
 loo_2 = loo(model_2)
 
@@ -149,7 +154,7 @@ model_3 = brm(
   prior = pr,
   cores = 4,
   iter = 4000,
-  file = "./model_3_effect"
+  file = "./models/model_3_effect"
 )
 summary(model_3)
 loo_3 = loo(model_3)
@@ -165,43 +170,43 @@ model_4 = brm(
   data  = train_data,
   cores = 4,
   iter = 4000,
-  file = "./model_4_effect"
+  file = "./models/model_4_effect"
 )
 summary(model_4)
 loo_4 = loo(model_4)
 
 pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
       prior(normal(0,1), class="b", coef ="scaled_bmi") +
-      prior(normal(0,1), class="b", coef ="children") +
+      prior(normal(0,1), class="b", coef ="scaled_children") +
       prior(student_t(3,0,1), class="sd", group="smoker") +
       prior(student_t(3,0,1), class="sd", group="region") 
       
      )
 
 model_5 = brm(
-  scaled_charges ~ scaled_age + scaled_bmi + children + (1|smoker) + (1|region),
+  scaled_charges ~ scaled_age + scaled_bmi + scaled_children + (1|smoker) + (1|region),
   data  = train_data,
   cores = 4,
   iter = 4000,
-  file = "./model_5_effect"
+  file = "./models/model_5_effect"
 )
 summary(model_5)
 loo_5 = loo(model_5)
 
 pr = (prior(normal(0,1), class = "b", coef = "scaled_age") +
       prior(normal(0,1), class="b", coef ="scaled_bmi") +
-      prior(normal(0,1), class="b", coef ="children") +
+      prior(normal(0,1), class="b", coef ="scaled_children") +
       prior(normal(0,1), class="b", coef ="age") +
       prior(student_t(3,0,1), class="sd", group="smoker") +
       prior(student_t(3,0,1), class="sd", group="region")
      )
 
 model_6 = brm(
-  scaled_charges ~ scaled_age + scaled_bmi + children + sex + (1|smoker) + (1|region),
+  scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  (1|smoker) + (1|region),
   data  = train_data,
   cores = 4,
   iter = 4000,
-  file = "./model_6_effect"
+  file = "./models/model_6_effect"
 )
 summary(model_6)
 loo_6 = loo(model_6)

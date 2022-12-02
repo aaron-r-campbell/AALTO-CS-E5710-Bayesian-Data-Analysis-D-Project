@@ -118,7 +118,7 @@ config = c(
   data = train_data,
   cores = 4,
   iter = 4000,
-  warmup = 400
+  warmup = 2000
 )
 ```
 
@@ -202,19 +202,29 @@ summary(model_1)
 loo_1 = loo(model_1)
 loo_1
 ```
+```{r fig.width=12,fig.height=8}
+plot(model_1)
+```
+
 
 ```{r}
 summary(model_2)
 loo_2 = loo(model_2)
 loo_2
 ```
+```{r fig.width=12,fig.height=8}
+plot(model_2)
+```
+
 
 ```{r}
 summary(model_3)
 loo_3 = loo(model_3)
 loo_3
 ```
-
+```{r fig.width=12,fig.height=8}
+plot(model_3)
+```
 
 ```{r}
 summary(model_4)
@@ -222,10 +232,19 @@ loo_4 = loo(model_4)
 loo_4
 ```
 
+```{r fig.width=12,fig.height=8}
+plot(model_4)
+```
+
+
 ```{r}
 summary(model_5)
 loo_5 = loo(model_5)
+plot(model_5)
 loo_5
+```
+```{r fig.width=12,fig.height=8}
+plot(model_5)
 ```
 
 ```{r}
@@ -233,11 +252,19 @@ summary(model_6_1)
 loo_6_1 = loo(model_6_1)
 loo_6_1
 ```
+```{r fig.width=12,fig.height=8}
+plot(model_6_1)
+```
+
 ```{r}
 summary(model_6_2)
 loo_6_2 = loo(model_6_2)
 loo_6_2
 ```
+```{r fig.width=12,fig.height=8}
+plot(model_6_2)
+```
+
 
 
 Loo comparison

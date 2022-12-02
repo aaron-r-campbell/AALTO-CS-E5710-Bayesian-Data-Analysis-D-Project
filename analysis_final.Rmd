@@ -232,7 +232,7 @@ loo_4 = loo(model_4)
 loo_4
 ```
 
-```{r fig.width=12,fig.height=8}
+```{r fig.width=12,fig.height=12}
 plot(model_4)
 ```
 
@@ -243,7 +243,7 @@ loo_5 = loo(model_5)
 plot(model_5)
 loo_5
 ```
-```{r fig.width=12,fig.height=8}
+```{r fig.width=12,fig.height=12}
 plot(model_5)
 ```
 
@@ -252,7 +252,7 @@ summary(model_6_1)
 loo_6_1 = loo(model_6_1)
 loo_6_1
 ```
-```{r fig.width=12,fig.height=8}
+```{r fig.width=12,fig.height=12}
 plot(model_6_1)
 ```
 
@@ -261,7 +261,7 @@ summary(model_6_2)
 loo_6_2 = loo(model_6_2)
 loo_6_2
 ```
-```{r fig.width=12,fig.height=8}
+```{r fig.width=12,fig.height=12}
 plot(model_6_2)
 ```
 
@@ -409,6 +409,13 @@ posterior_predictions <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, nrow =
 posterior_predictions
 ggsave("img/posterior_predictions.pdf", plot=posterior_predictions)
 ```
+
+Stan codes:
+
+```{r}
+stancode(model_6_2)
+```
+
 
 
 

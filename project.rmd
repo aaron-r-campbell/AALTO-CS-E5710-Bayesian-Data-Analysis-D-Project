@@ -1,0 +1,541 @@
+---
+output:
+ pdf_document:
+  toc: no
+  keep_tex: true
+ html_document:
+  toc: yes
+  toc_depth: '1'
+  df_print: paged
+ header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\scriptsize,commandchars=\\\{\}}
+---
+
+# Setup
+
+```{r, message = FALSE, warning = FALSE}
+# Define a seed for random
+SEED <- 614273
+
+# Load packages
+library(aaltobda)
+library(brms)
+library(caret)
+library(corrplot)
+library(crosstable)
+library(dplyr)
+library(flextable)
+library(ggplot2)
+library(ggplotify)
+library(ggpubr)
+library(lme4)
+library(patchwork)
+
+# Define ggplot2 styling
+theme_set(theme_classic())
+update_geom_defaults("bar", list(fill = "#d3d3d3", color = "#000000"))
+single_plot_theme <- theme(text = element_text(size = 20))
+multi_plot_theme <- theme(text = element_text(size = 15))
+```
+
+# Data Loading
+
+```{r}
+data <- read.csv('https://raw.githubusercontent.com/stedy/Machine-Learning-with-R-datasets/master/insurance.csv')
+head(data)
+data$sex <- as.factor(data$sex)
+data$children <- as.integer(data$children)
+data$smoker <- as.factor(data$smoker)
+data$region <- recode(as.factor(data$region),
+               "northeast" = "north",
+               "northwest" = "north",
+               "southeast" = "south",
+               "southwest" = "south")
+head(data)
+```
+
+# Data Visualization
+
+## Plotting Variables
+
+```{r, message = FALSE, results = 'hide', fig.keep = 'all'}
+# Create plots
+dist_age <- ggplot(data, aes(x = age)) +
+           geom_histogram(breaks = seq(min(data$age), max(data$age), length.out = 11), bins = 10) +
+           labs(x = "Age (years)", y = "Frequency") + 
+           scale_x_continuous(breaks = as.integer(seq(min(data$age), max(data$age), length.out = 6)))
+
+dist_sex <- ggplot(data, aes(x = sex)) +
+           geom_bar(width = 0.5) + labs(x = "Sex", y = "Frequency") +
+           geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
+           coord_cartesian(ylim = c(0, 750))
+
+dist_bmi <- ggplot(data, aes(x = bmi)) +
+           geom_histogram(bins = 30) +
+           labs(x = expression(paste('BMI ', bgroup("(", frac("kg", "m"^2), ")"))), y = "Frequency") +
+           scale_x_continuous(breaks = as.integer(seq(min(data$bmi), max(data$bmi), length.out = 5)))
+
+dist_children <- ggplot(data, aes(x = children)) +
+                geom_bar() + labs(x = "Number of children", y = "Frequency") +
+                geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
+                scale_x_continuous(breaks = min(data$children):max(data$children),
+                                   labels = sapply(min(data$children):max(data$children), function(x) toString(x))) +
+                coord_cartesian(ylim = c(0, 650)) 
+
+dist_smoker <- ggplot(data, aes(x = smoker)) +
+              geom_bar(width = 0.5) + labs(x = "Smoker", y = "Frequency") +
+              geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
+              coord_cartesian(ylim = c(0, 1200))
+
+dist_region <- ggplot(data, aes(x = region)) +
+              geom_bar(width = 0.5) +
+              labs(x = "Region (USA)", y = "Frequency") +
+              geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
+              coord_cartesian(ylim = c(0, 750)) 
+
+dist_charges <- ggplot(data, aes(x = charges)) +
+               geom_histogram(bins = 30) +
+               labs(x = "Price ($)", y = "Frequency")
+
+dist_all <- (dist_age + dist_sex) /
+            (dist_bmi + dist_region) /
+            (dist_children + dist_smoker) /
+            dist_charges +
+            plot_annotation(tag_levels = 'A') +
+            plot_layout(heights = c(1, 1, 1, 1.5)) +
+            multi_plot_theme
+
+# Plot all
+dist_all
+
+# Save figures
+if (!file.exists("img")) dir.create("img")
+if (!file.exists("img/dist_plots")) dir.create("img/dist_plots")
+ggsave("img/dist_plots/dist_age.pdf", dist_age + single_plot_theme)
+ggsave("img/dist_plots/dist_sex.pdf", dist_sex + single_plot_theme)
+ggsave("img/dist_plots/dist_bmi.pdf", dist_bmi + single_plot_theme)
+ggsave("img/dist_plots/dist_children.pdf", dist_children + single_plot_theme)
+ggsave("img/dist_plots/dist_smoker.pdf", dist_smoker + single_plot_theme)
+ggsave("img/dist_plots/dist_region.pdf", dist_region + single_plot_theme)
+ggsave("img/dist_plots/dist_charge.pdf", dist_charges + single_plot_theme)
+ggsave("img/dist_plots/dist_all.pdf", dist_all, width = 8, height = 12)
+```
+
+## Data Correlation
+
+```{r, results = 'hide', fig.keep = 'all'}
+# Create numeric only data
+data_clean <- data
+data_clean$sex <- ifelse(data_clean$sex == 'male', 1, 0)
+data_clean$smoker <- ifelse(data_clean$smoker == 'yes', 1, 0)
+data_clean$region <- ifelse(data_clean$region == 'north', 1, 0)
+
+# Create correlation matrix
+cor_matrix <- cor(data_clean)
+
+# Plot correlation matrix
+corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd', cl.pos = 'n')
+
+# Save figure
+if (!file.exists("img")) dir.create("img")
+pdf("img/corr_matrix.pdf")
+corrplot(cor_matrix, type = 'lower', order = 'AOE', addCoef.col = 'black', tl.pos = 'd', cl.pos = 'n')
+dev.off()
+```
+
+## Data crosstable
+
+```{r}
+# Plot crosstable
+crosstable <- crosstable(data, c(sex, region), by = smoker)
+crosstable
+```
+
+# Pre-processing
+
+## Scale data
+
+```{r}
+# Define helper functions
+standardize <- function(values) (values - mean(values)) / sd(values)
+de_standardize <- function(values, sd_values, mean_values) values * sd_values + mean_values
+
+# Scale the data
+data$scaled_charges <- standardize(data$charges)
+data$scaled_age <- standardize(data$age)
+data$scaled_bmi <- standardize(data$bmi)
+data$scaled_children <- standardize(data$children)
+head(data)
+```
+
+## Split data
+
+```{r}
+inTrain <- createDataPartition(y = data$charges, # Target variable
+                               p = 0.75, # Percentage of the data to use for training
+                               list = FALSE)
+
+train_data <- data[inTrain,]
+test_data <- data[-inTrain,]
+
+# Save datasets
+if (!file.exists("data")) dir.create("data")
+write.csv(train_data, "data/train_data.csv")
+write.csv(test_data, "data/test_data.csv")
+```
+
+# Modeling
+
+## Baseline model
+
+```{r}
+basic_model <- lmer(scaled_charges ~ scaled_age + scaled_bmi + children + sex + (1|smoker) + (1|region),
+               data = train_data)
+```
+
+## Definition of priors
+
+```{r}
+pr1 <- (prior(normal(0, 1), class = "b", coef = "scaled_age"))
+
+pr2 <- (prior(normal(0, 1), class = "b", coef = "scaled_age") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "smoker"))
+
+pr3 <- (prior(normal(0, 1), class = "b", coef = "scaled_age") + 
+       prior(normal(0, 1), class = "b", coef = "scaled_bmi") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "smoker"))
+
+pr4 <- (prior(normal(0, 1), class = "b", coef = "scaled_age") + 
+       prior(normal(0, 1), class = "b", coef = "scaled_bmi") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "smoker") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "region"))
+
+pr5 <- (prior(normal(0, 1), class = "b", coef = "scaled_age") + 
+       prior(normal(0, 1), class = "b", coef = "scaled_bmi") + 
+       prior(normal(0, 1), class = "b", coef = "scaled_children") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "smoker") + 
+       prior(student_t(3, 0, 1), class = "sd", group = "region"))
+
+pr6_1 <- prior(normal(0, 1), class = 'b') 
+
+pr6_2 <- (prior(normal(0, 1), class = "b", coef = "scaled_age") + 
+         prior(normal(0, 1), class = "b", coef = "sexmale") + 
+         prior(normal(0, 1), class = "b", coef = "scaled_bmi") + 
+         prior(normal(0, 1), class = "b", coef = "scaled_children") + 
+         prior(student_t(3, 0, 1), class = "sd", group = "smoker") + 
+         prior(student_t(3, 0, 1), class = "sd", group = "region"))
+```
+
+## Define and train the models
+```{r}
+config <- data.frame(cores = 8, chains = 4, iter = 4000, warmup = 2000)
+if (!file.exists("models")) dir.create("models")
+model_1 <- brm(scaled_charges ~ scaled_age,
+           prior = pr1,
+           file = "models/model_1",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_2 <- brm(scaled_charges ~ scaled_age + (1|smoker),
+           prior = pr2,
+           file = "models/model_2",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_3 <- brm(scaled_charges ~ scaled_age + scaled_bmi + (1|smoker),
+           prior = pr3,
+           file = "models/model_3",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_4 <- brm(scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+           prior = pr4,
+           file = "models/model_4",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_5 <- brm(scaled_charges ~ scaled_age + scaled_bmi + scaled_children + (1|smoker) + (1|region),
+           prior = pr5,
+           file = "models/model_5",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_6_1 <- brm(scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  smoker + region,
+             prior = pr6_1,
+             file = "models/model_6_1",
+             data = train_data,
+             cores = config$cores,
+             iter = config$iter,
+             warmup = config$warmup)
+
+model_6_2 <- brm(scaled_charges ~ scaled_age + sex + scaled_bmi + scaled_children +  (1|smoker) + (1|region), 
+             prior = pr6_2,
+             file = "models/model_6_2",
+             data = train_data,
+             cores = config$cores,
+             iter = config$iter,
+             warmup = config$warmup)
+```
+
+# Convergence diagnostics
+
+## Summaries
+```{r, warning=FALSE}
+summary(basic_model)
+summary(model_1)
+summary(model_2)
+summary(model_3)
+summary(model_4)
+summary(model_5)
+summary(model_6_1)
+summary(model_6_2)
+```
+
+## Trace plots
+
+```{r, message = FALSE, results = 'hide', fig.keep = 'all'}
+# Define figures
+trace_1 <- as.ggplot(plot(model_1, plot = FALSE)[[1]][1]) + ggtitle("1 effect model")
+trace_2 <- as.ggplot(plot(model_2, plot = FALSE)[[1]][1]) + ggtitle("2 effect model")
+trace_3 <- as.ggplot(plot(model_3, plot = FALSE)[[1]][1]) + ggtitle("3 effect model")
+trace_4 <- as.ggplot(plot(model_4, plot = FALSE)[[1]][1]) + ggtitle("4 effect model")
+trace_5 <- as.ggplot(plot(model_5, plot = FALSE)[[1]][1]) + ggtitle("5 effect model")
+trace_6_1 <- as.ggplot(plot(model_6_1, plot = FALSE)[[1]][1]) + ggtitle("6 effect non-hierarchical model")
+trace_6_2 <- as.ggplot(plot(model_6_2, plot = FALSE)[[1]][1]) + ggtitle("6 effect hierarchical model")
+
+# Display plots
+trace_1
+trace_2
+trace_3
+trace_4
+trace_5
+trace_6_1
+trace_6_2
+
+# Save plots
+if (!file.exists("img")) dir.create("img")
+if (!file.exists("img/trace_plots")) dir.create("img/trace_plots")
+ggsave("img/trace_plots/trace_1.pdf", trace_1 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_2.pdf", trace_2 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_3.pdf", trace_3 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_4.pdf", trace_4 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_5.pdf", trace_5 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_6_1.pdf", trace_6_1 + single_plot_theme, width = 8.5, height = 11)
+ggsave("img/trace_plots/trace_6_2.pdf", trace_6_2 + single_plot_theme, width = 8.5, height = 11)
+```
+
+## Leave-One-Out Cross Validation (LOO)
+
+```{r}
+# Get LOO
+loo_1 <- loo(model_1)
+loo_2 <- loo(model_2)
+loo_3 <- loo(model_3)
+loo_4 <- loo(model_4)
+loo_5 <- loo(model_5)
+loo_6_1 <- loo(model_6_1)
+loo_6_2 <- loo(model_6_2)
+
+# Print LOO
+loo_1
+loo_2
+loo_3
+loo_4
+loo_5
+loo_6_1
+loo_6_2
+
+# LOO comparisson
+loo_compare(loo_1, loo_2, loo_3, loo_4, loo_5, loo_6_1, loo_6_2)
+```
+
+# Posterior predictive checks
+
+```{r, message = FALSE, results = 'hide', fig.keep = 'all'}
+# Create plots
+pp_1 <- pp_check(model_1) + ggtitle("1 effect model")
+pp_2 <- pp_check(model_2) + ggtitle("2 effect model ")
+pp_3 <- pp_check(model_3) + ggtitle("3 effect model ")
+pp_4 <- pp_check(model_4) + ggtitle("4 effect model ")
+pp_5 <- pp_check(model_5) + ggtitle("5 effect model")
+pp_6_1 <- pp_check(model_6_1) + ggtitle("6 effect non-hierarchical model")
+pp_6_2 <- pp_check(model_6_2) + ggtitle("6 effect hierarchical model")
+pp_all <- (pp_1 + pp_2) /
+          (pp_3 + pp_4) /
+          (pp_5 + pp_6_1) /
+          (pp_6_2 + plot_spacer()) +
+          plot_layout(guides = 'collect') +
+          multi_plot_theme
+
+# Plot all
+pp_all
+
+# Save plots
+if (!file.exists("img")) dir.create("img")
+if (!file.exists("img/pp_plots")) dir.create("img/pp_plots")
+ggsave("img/pp_plots/pp_1.pdf", pp_1 + single_plot_theme)
+ggsave("img/pp_plots/pp_2.pdf", pp_2 + single_plot_theme)
+ggsave("img/pp_plots/pp_3.pdf", pp_3 + single_plot_theme)
+ggsave("img/pp_plots/pp_4.pdf", pp_4 + single_plot_theme)
+ggsave("img/pp_plots/pp_5.pdf", pp_5 + single_plot_theme)
+ggsave("img/pp_plots/pp_6_1.pdf", pp_6_1 + single_plot_theme)
+ggsave("img/pp_plots/pp_6_2.pdf", pp_6_2 + single_plot_theme)
+ggsave("img/pp_plots/pp_all.pdf", pp_all)
+```
+
+# Predictive performance
+
+## Data frame to store performance metrics
+```{r}
+pred_perf <- data.frame(
+    Model = c("lm (baseline)", "1-effect", "2-effect", "3-effect", "4-effect", "5-effect", "6-effect-hierarchical", "6-effect-non-hierarchical")
+)
+
+# descaling the data
+c_sd <- sd(train_data$charges)
+c_mean <- mean(train_data$charges)
+
+# de-scaled values
+pp_1 <- de_standardize(colMeans(posterior_predict(model_1, newdata = test_data)), c_sd, c_mean)
+pp_2 <- de_standardize(colMeans(posterior_predict(model_2, newdata = test_data)), c_sd, c_mean)
+pp_3 <- de_standardize(colMeans(posterior_predict(model_3, newdata = test_data)), c_sd, c_mean)
+pp_4 <- de_standardize(colMeans(posterior_predict(model_4, newdata = test_data)), c_sd, c_mean)
+pp_5 <- de_standardize(colMeans(posterior_predict(model_5, newdata = test_data)), c_sd, c_mean)
+pp_6_1 <- de_standardize(colMeans(posterior_predict(model_6_1, newdata = test_data)), c_sd, c_mean)
+pp_6_2 <- de_standardize(colMeans(posterior_predict(model_6_2, newdata = test_data)), c_sd, c_mean)
+pp_lm <- de_standardize(predict(basic_model, newdata = test_data), c_sd, c_mean)
+
+# Mean average error
+calculate_mae <- function(true, predicted) mean(abs(true-predicted))
+
+mae_lm <- calculate_mae(test_data$charges, (pp_lm))
+mae_1 <- calculate_mae(test_data$charges, (pp_1))
+mae_2 <- calculate_mae(test_data$charges, (pp_2))
+mae_3 <- calculate_mae(test_data$charges, (pp_3))
+mae_4 <- calculate_mae(test_data$charges, (pp_4))
+mae_5 <- calculate_mae(test_data$charges, (pp_5))
+mae_6_1 <- calculate_mae(test_data$charges, (pp_6_1))
+mae_6_2 <- calculate_mae(test_data$charges, (pp_6_2))
+
+# Add to dataframe
+pred_perf <- cbind(pred_perf, mean_absolute_error = c(mae_lm, mae_1, mae_2, mae_3, mae_4, mae_5, mae_6_1, mae_6_2))
+
+# Root mean squared error
+calculate_rmse <- function(true, predicted) sqrt(mean((true - predicted)^2))
+
+rmse_lm <- calculate_rmse(test_data$charges, (pp_lm))
+rmse_1 <- calculate_rmse(test_data$charges, (pp_1))
+rmse_2 <- calculate_rmse(test_data$charges, (pp_2))
+rmse_3 <- calculate_rmse(test_data$charges, (pp_3))
+rmse_4 <- calculate_rmse(test_data$charges, (pp_4))
+rmse_5 <- calculate_rmse(test_data$charges, (pp_5))
+rmse_6_1 <- calculate_rmse(test_data$charges, (pp_6_1))
+rmse_6_2 <- calculate_rmse(test_data$charges, (pp_6_2))
+
+# Add to dataframe
+pred_perf <- cbind(pred_perf, root_mean_squared_error = c(rmse_lm, rmse_1, rmse_2, rmse_3, rmse_4, rmse_5, rmse_6_1, rmse_6_2))
+
+# Root squared error
+calculate_r2 <- function(true, predicted) 1 - sum((true - predicted)^2) / sum((true - mean(true))^2)
+
+r2_lm <- calculate_r2(test_data$charges, (pp_lm))
+r2_1 <- calculate_r2(test_data$charges, (pp_1))
+r2_2 <- calculate_r2(test_data$charges, (pp_2))
+r2_3 <- calculate_r2(test_data$charges, (pp_3))
+r2_4 <- calculate_r2(test_data$charges, (pp_4))
+r2_5 <- calculate_r2(test_data$charges, (pp_5))
+r2_6_1 <- calculate_r2(test_data$charges, (pp_6_1))
+r2_6_2 <- calculate_r2(test_data$charges, (pp_6_2))
+
+# Add to dataframe
+pred_perf <- cbind(pred_perf, root_squared_error = c(r2_lm, r2_1, r2_2, r2_3, r2_4, r2_5, r2_6_1, r2_6_2))
+
+# Print dataframe
+pred_perf
+```
+
+```{r, message = FALSE, results = 'hide', fig.keep = 'all'}
+# Create plots
+post_0_1 <- ggplot(test_data, aes(x = charges)) +
+            geom_density() +
+            ggtitle("Test data") +
+            labs(x = "Charges", y = "Density")
+
+post_0_2 <- ggplot() +
+            geom_density(aes(x = pp_lm)) +
+            ggtitle("Linear Mixed Model") +
+            labs(x = "Charges", y = "Density")
+
+post_1 <- ggplot() +
+          geom_density(aes(x = pp_1)) +
+          ggtitle("1 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_2 <- ggplot() +
+          geom_density(aes(x = pp_2)) +
+          ggtitle("2 effect model") + 
+          labs(x = "Charges", y = "Density")
+
+post_3 <- ggplot() +
+          geom_density(aes(x = pp_3)) +
+          ggtitle("3 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_4 <- ggplot() +
+          geom_density(aes(x = pp_4)) +
+          ggtitle("4 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_5 <- ggplot() +
+          geom_density(aes(x = pp_5)) +
+          ggtitle("5 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_6_1 <- ggplot() +
+            geom_density(aes(x = pp_6_1)) +
+            ggtitle("6 effect non-hierarchical model") +
+            labs(x = "Charges", y = "Density")
+
+post_6_2 <- ggplot() +
+            geom_density(aes(x = pp_6_2)) +
+            ggtitle("6 effect hierarchical model") +
+            labs(x = "Charges", y = "Density")
+
+post_all <-  (post_0_1 + post_0_2 ) /
+             (post_1 + post_2) /
+             (post_3 + post_4) /
+             (post_5 + post_6_1) /
+             (post_6_2 + plot_spacer()) +
+             multi_plot_theme
+# Plot all
+post_all
+
+# Save plots
+if (!file.exists("img")) dir.create("img")
+if (!file.exists("img/post_plots")) dir.create("img/post_plots")
+ggsave("img/post_plots/post_0_1.pdf", post_0_1 + single_plot_theme)
+ggsave("img/post_plots/post_0_2.pdf", post_0_2 + single_plot_theme)
+ggsave("img/post_plots/post_1.pdf", post_1 + single_plot_theme)
+ggsave("img/post_plots/post_2.pdf", post_2 + single_plot_theme)
+ggsave("img/post_plots/post_3.pdf", post_3 + single_plot_theme)
+ggsave("img/post_plots/post_4.pdf", post_4 + single_plot_theme)
+ggsave("img/post_plots/post_5.pdf", post_5 + single_plot_theme)
+ggsave("img/post_plots/post_6_1.pdf", post_6_1 + single_plot_theme)
+ggsave("img/post_plots/post_6_2.pdf", post_6_2 + single_plot_theme)
+ggsave("img/post_plots/post_all.pdf", post_all, width = 8.5, height = 11)
+```
+
+```{r}
+as_flextable(crosstable(data, c(sex, region), by=smoker))
+```

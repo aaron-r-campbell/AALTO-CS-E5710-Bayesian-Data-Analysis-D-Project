@@ -470,53 +470,60 @@ pred_perf
 post_0_1 <- ggplot(test_data, aes(x = charges)) +
             geom_density() +
             ggtitle("Test data") +
-            labs(x = "Charges", y = "Density")
+            labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_0_2 <- ggplot() +
             geom_density(aes(x = pp_lm)) +
             ggtitle("Linear Mixed Model") +
-            labs(x = "Charges", y = "Density")
+            labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_1 <- ggplot() +
           geom_density(aes(x = pp_1)) +
           ggtitle("1 effect model") +
-          labs(x = "Charges", y = "Density")
+          labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_2 <- ggplot() +
           geom_density(aes(x = pp_2)) +
           ggtitle("2 effect model") + 
-          labs(x = "Charges", y = "Density")
+          labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_3 <- ggplot() +
           geom_density(aes(x = pp_3)) +
           ggtitle("3 effect model") +
-          labs(x = "Charges", y = "Density")
+          labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_4 <- ggplot() +
           geom_density(aes(x = pp_4)) +
           ggtitle("4 effect model") +
-          labs(x = "Charges", y = "Density")
+          labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_5 <- ggplot() +
           geom_density(aes(x = pp_5)) +
           ggtitle("5 effect model") +
-          labs(x = "Charges", y = "Density")
+          labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_6_1 <- ggplot() +
             geom_density(aes(x = pp_6_1)) +
             ggtitle("6 effect non-hierarchical model") +
-            labs(x = "Charges", y = "Density")
+            labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
 post_6_2 <- ggplot() +
             geom_density(aes(x = pp_6_2)) +
             ggtitle("6 effect hierarchical model") +
-            labs(x = "Charges", y = "Density")
+            labs(x = "Charges", y = "Density") +
+            coord_cartesian(xlim = c(0, 60000), ylim = c(0, 0.0001))
 
-post_all <-  (post_0_1 + post_0_2 ) /
-             (post_1 + post_2) /
-             (post_3 + post_4) /
-             (post_5 + post_6_1) /
-             (post_6_2 + plot_spacer()) +
+post_all <-  (post_0_1 + post_0_2 + post_1) /
+             (post_2 + post_3 + post_4) /
+             (post_5 + post_6_1 + post_6_2) +
              multi_plot_theme
 # Plot all
 post_all

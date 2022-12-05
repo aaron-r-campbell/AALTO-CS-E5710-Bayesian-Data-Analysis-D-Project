@@ -96,14 +96,12 @@ dist_region <- ggplot(data, aes(x = region)) +
 
 dist_charges <- ggplot(data, aes(x = charges)) +
                geom_histogram(bins = 30) +
-               labs(x = "Price ($)", y = "Frequency")
+               labs(x = "Charge ($)", y = "Frequency")
 
-dist_all <- (dist_age + dist_sex) /
-            (dist_bmi + dist_region) /
-            (dist_children + dist_smoker) /
-            dist_charges +
+dist_all <- (dist_charges + dist_region + dist_children) /
+            (dist_age + dist_sex + plot_spacer()) /
+            (dist_bmi + dist_smoker + plot_spacer()) +
             plot_annotation(tag_levels = 'A') +
-            plot_layout(heights = c(1, 1, 1, 1.5)) +
             multi_plot_theme
 
 # Plot all
@@ -119,7 +117,7 @@ ggsave("img/dist_plots/dist_children.pdf", dist_children + single_plot_theme)
 ggsave("img/dist_plots/dist_smoker.pdf", dist_smoker + single_plot_theme)
 ggsave("img/dist_plots/dist_region.pdf", dist_region + single_plot_theme)
 ggsave("img/dist_plots/dist_charge.pdf", dist_charges + single_plot_theme)
-ggsave("img/dist_plots/dist_all.pdf", dist_all, width = 8, height = 12)
+ggsave("img/dist_plots/dist_all.pdf", dist_all, width = 8.5, height = 8.5)
 ```
 
 ## Data Correlation
@@ -540,9 +538,177 @@ ggsave("img/post_plots/post_4.pdf", post_4 + single_plot_theme)
 ggsave("img/post_plots/post_5.pdf", post_5 + single_plot_theme)
 ggsave("img/post_plots/post_6_1.pdf", post_6_1 + single_plot_theme)
 ggsave("img/post_plots/post_6_2.pdf", post_6_2 + single_plot_theme)
-ggsave("img/post_plots/post_all.pdf", post_all, width = 8.5, height = 11)
+ggsave("img/post_plots/post_all.pdf", post_all, width = 8.5, height = 8.5)
 ```
 
+# Prior Sensititivity Analysis
+
+Using 4-effect model as baseline for prior sensitivity analysis, test 3 other priors
+
+## Model Priors
 ```{r}
-as_flextable(crosstable(data, c(sex, region), by=smoker))
+pr4_2 <- (prior(normal(.5,.5), class = "b", coef = "scaled_age") +
+          prior(normal(.5,.5), class="b", coef ="scaled_bmi") +
+          prior(student_t(3,.5,.5), class="sd", group="region") +
+          prior(student_t(3,.5,.5), class="sd", group="smoker"))
+
+pr4_3 <- (prior(normal(0,0.1), class = "b", coef = "scaled_age") +
+          prior(normal(0,0.1), class="b", coef ="scaled_bmi") +
+          prior(student_t(3,0,0.1), class="sd", group="region") +
+          prior(student_t(3,0,0.1), class="sd", group="smoker"))
+
+pr4_4 <- (prior(normal(0,10), class = "b", coef = "scaled_age") +
+          prior(normal(0,10), class="b", coef ="scaled_bmi") +
+          prior(student_t(3,0,10), lb=0,ub=0, class="sd", group="region") +
+          prior(student_t(3,0,10), lb=0,ub=0, class="sd", group="smoker"))
+```
+
+## Models
+```{r}
+model_4_2 <- brm(scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+           prior = pr4_2,
+           file = "models/model_4_2",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_4_3 <- brm(scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+           prior = pr4_3,
+           file = "models/model_4_3",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+
+model_4_4 <- brm(scaled_charges ~ scaled_age + scaled_bmi + (1|smoker) + (1|region),
+           prior = pr4_4,
+           file = "models/model_4_4",
+           data = train_data,
+           cores = config$cores,
+           iter = config$iter,
+           warmup = config$warmup)
+```
+
+## Summaries
+
+```{r}
+summary(model_4)
+summary(model_4_2)
+summary(model_4_3)
+summary(model_4_4)
+```
+
+## LOO-CV
+
+```{r}
+# Get LOO
+loo_4_2 <- loo(model_4_2)
+loo_4_3 <- loo(model_4_3)
+loo_4_4 <- loo(model_4_4)
+
+# Print LOO
+loo_4
+loo_4_2
+loo_4_3
+loo_4_4
+
+# LOO comparrison
+loo_compare(loo_4, loo_4_2, loo_4_3, loo_4_4)
+```
+
+## Residuals
+
+```{r}
+# Create plots
+# resid_4 <- ggplot() + geom_histogram(aes(x = residuals(model_4)), bins = 30) + ggtitle("4-effect model")
+# resid_4_2 <-ggplot() + geom_histogram(aes(x = residuals(model_4_2)), bins = 30) + ggtitle("4-effect model 2")
+# resid_4_3 <-ggplot() + geom_histogram(aes(x = residuals(model_4_3)), bins = 30) + ggtitle("4-effect model 3")
+# resid_4_4 <-ggplot() + geom_histogram(aes(x = residuals(model_4_4)), bins = 30) + ggtitle("4-effect model 4")
+# resid_all <- (resid_4 + resid_4_2) /
+#              (resid_4_3 + resid_4_4) +
+#              multi_plot_theme
+             
+# # Show combined
+# resid_all
+
+# # Save plots
+# if (!file.exists("img")) dir.create("img")
+# if (!file.exists("img/resid_plots")) dir.create("img/resid_plots")
+# ggsave("img/resid_plots/resid_4_2.pdf", post_4_2 + single_plot_theme)
+# ggsave("img/resid_plots/resid_4_3.pdf", post_4_3 + single_plot_theme)
+# ggsave("img/resid_plots/resid_4_4.pdf", post_4_4 + single_plot_theme)
+# ggsave("img/resid_plots/resid_all.pdf", resid_all)
+```
+
+## Post prediction with test data
+
+```{r}
+prior_pred_pref <- data.frame(
+    Model = c("lm (baseline)", "4-effect", "4-effect-2", "4-effect-3", "4-effect-4")
+)
+
+# de-scaled values
+pp_4_2 <- de_standardize(colMeans(posterior_predict(model_2, newdata = test_data)), c_sd, c_mean)
+pp_4_3 <- de_standardize(colMeans(posterior_predict(model_3, newdata = test_data)), c_sd, c_mean)
+pp_4_4 <- de_standardize(colMeans(posterior_predict(model_4, newdata = test_data)), c_sd, c_mean)
+
+# Mean average error
+mae_4_2 <- calculate_mae(test_data$charges, (pp_4_2))
+mae_4_3 <- calculate_mae(test_data$charges, (pp_4_3))
+mae_4_4 <- calculate_mae(test_data$charges, (pp_4_4))
+
+# Add to dataframe
+prior_pred_pref <- cbind(prior_pred_pref, mean_absolute_error = c(mae_lm, mae_4, mae_4_2, mae_4_3, mae_4_4))
+
+# Root mean squared error
+rmse_4_2 <- calculate_rmse(test_data$charges, (pp_4_2))
+rmse_4_3 <- calculate_rmse(test_data$charges, (pp_4_3))
+rmse_4_4 <- calculate_rmse(test_data$charges, (pp_4_4))
+
+# Add to dataframe
+prior_pred_pref <- cbind(prior_pred_pref, root_mean_squared_error = c(rmse_lm, rmse_4, rms_4e_2, rmse_4_3, rmse_4_4))
+
+# Root squared error
+r2_4_2 <- calculate_r2(test_data$charges, (pp_4_2))
+r2_4_3 <- calculate_r2(test_data$charges, (pp_4_3))
+r2_4_4 <- calculate_r2(test_data$charges, (pp_4_4))
+
+# Add to dataframe
+prior_pred_pref <- cbind(prior_pred_pref, root_squared_error = c(r2_lm, r2_4, r2_4_2, r2_4_3, r2_4_4))
+
+# Print dataframe
+prior_pred_pref
+```
+
+```{r, message = FALSE, results = 'hide', fig.keep = 'all'}
+# Create plots
+post_4_2 <- post_4 +
+          geom_density(aes(x = pp_2)) +
+          ggtitle("2 effect model") + 
+          labs(x = "Charges", y = "Density")
+
+post_4_3 <- ggplot() +
+          geom_density(aes(x = pp_3)) +
+          ggtitle("3 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_4_4 <- ggplot() +
+          geom_density(aes(x = pp_4)) +
+          ggtitle("4 effect model") +
+          labs(x = "Charges", y = "Density")
+
+post_prior <- (post_4 + post_4_2) /
+             (post_4_3 + post_4_4) +
+             multi_plot_theme
+# Plot all
+post_prior
+
+# Save plots
+if (!file.exists("img")) dir.create("img")
+if (!file.exists("img/post_plots")) dir.create("img/post_plots")
+ggsave("img/post_plots/post_4_2.pdf", post_4_2 + single_plot_theme)
+ggsave("img/post_plots/post_4_3.pdf", post_4_3 + single_plot_theme)
+ggsave("img/post_plots/post_4_4.pdf", post_4_4 + single_plot_theme)
+ggsave("img/post_plots/post_prior.pdf", post_prior, width = 8.5, height = 11)
 ```
